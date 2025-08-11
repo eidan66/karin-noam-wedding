@@ -16,6 +16,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Karin & Noam Wedding Album",
   description: "Karin & Noam Wedding Digital Album",
+  icons: {
+    icon: '/wedding-rings.svg',
+    shortcut: '/wedding-rings.svg',
+  },
 };
 
 export default function RootLayout({

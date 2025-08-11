@@ -8,6 +8,7 @@ import { Heart, Camera, Upload } from "lucide-react";
 import { motion } from "framer-motion";
 import { Footer } from "./Footer";
 import { ShareFAB } from "./ui/ShareFAB";
+import { WeddingDateConfetti } from "./Confetti";
 
 interface LayoutProps {
   children?: React.ReactNode; // Make children optional
@@ -40,6 +41,12 @@ export default function Layout({ children }: LayoutProps) {
                   קרין & נועם
                 </h1>
                 <p className="text-sm text-gray-600 font-medium text-center">זכרונות מהחתונה שלנו</p>
+                <div className="relative">
+                  <p className="text-sm text-gray-600 font-medium text-center relative z-10">
+                    <span className="text-gold-600 font-semibold drop-shadow-sm">18-08-2025</span>
+                  </p>
+                  <WeddingDateConfetti />
+                </div>
               </div>
             </Link>
             
