@@ -30,7 +30,8 @@ export default function MediaGrid({ media, onMediaClick }: MediaGridProps) {
                   src={item.media_url}
                   alt={item.title || "Wedding memory"}
                   className="w-full h-auto object-cover group-hover:scale-110 transition-transform duration-700"
-                  loading="lazy"
+                  loading="eager"
+                  decoding="async"
                 />
               ) : (
                 <VideoPreview

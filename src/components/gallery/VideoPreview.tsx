@@ -10,6 +10,7 @@ interface VideoPreviewProps {
   posterUrl: string;
   className?: string;
   onError?: () => void;
+  fixedAspect?: boolean; // if true, wrap with aspect-video
 }
 
 export default function VideoPreview({ 
@@ -17,7 +18,8 @@ export default function VideoPreview({
   webmUrl, 
   posterUrl, 
   className = "", 
-  onError 
+  onError,
+  fixedAspect = true,
 }: VideoPreviewProps) {
   const [hasError, setHasError] = useState(false);
   const [isLoading, setIsLoading] = useState(!isMobile());
@@ -63,7 +65,6 @@ export default function VideoPreview({
   };
 
   const handleLoadedMetadata = () => {
-    // On some Androids, canplay is delayed; once metadata is available, allow poster/overlay to hide
     setIsReady(true);
     setPosterVisible(false);
   };
@@ -78,8 +79,10 @@ export default function VideoPreview({
     setPosterVisible(false);
   };
 
+  const containerClass = fixedAspect ? `relative aspect-video ${className}` : `relative ${className}`;
+
   return (
-    <div className={`relative aspect-video ${className}`}>
+    <div className={containerClass}>
       {hasError && posterUrl && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -97,18 +100,17 @@ export default function VideoPreview({
           muted
           loop
           autoPlay
-          preload={isIOS ? "metadata" : "auto"}
+          preload="auto"
           poster={posterUrl}
           crossOrigin="anonymous"
           disableRemotePlayback
           controls={false}
-          className="absolute inset-0 h-full w-full object-cover"
+          className="w-full h-auto object-cover"
           onLoadStart={() => !isMobile() && setIsLoading(true)}
           onLoadedMetadata={handleLoadedMetadata}
           onCanPlay={handleCanPlay}
           onError={handleVideoError}
         >
-          {/* Prefer WebM first on non‑iOS; iOS gets MP4 only */}
           {!isIOS && webmUrl && <source src={webmUrl} type="video/webm" />}
           <source src={mp4Url} type="video/mp4" />
         </video>

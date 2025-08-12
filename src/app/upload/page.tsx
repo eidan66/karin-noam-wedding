@@ -12,6 +12,7 @@ import UploadZone from "../../components/upload/UploadZone";
 import UploadPreview from "../../components/upload/UploadPreview";
 import SuccessAnimation from "../../components/upload/SuccessAnimation";
 import { useBulkUploader } from "../../hooks/useBulkUploader";
+import { useToast } from "@/components/ui/toast";
 
 export default function UploadPage() {
   const navigate = useRouter();
@@ -24,6 +25,7 @@ export default function UploadPage() {
   const [showLongRunning, setShowLongRunning] = useState(false);
 
   const { uploads, uploadFiles, isUploading } = useBulkUploader();
+  const { show: showToast } = useToast();
 
   const handleFileSelect = (files: FileList | null) => {
     if (!files) return;
@@ -42,13 +44,13 @@ export default function UploadPage() {
   useEffect(() => {
     let t: NodeJS.Timeout | null = null;
     if (isUploading) {
-      t = setTimeout(() => setShowLongRunning(true), 30000);
+      t = setTimeout(() => { setShowLongRunning(true); showToast('לא נתקענו! מעלים לכם את התמונות... 🍾'); }, 30000);
     } else {
       setShowLongRunning(false);
       if (t) clearTimeout(t);
     }
     return () => { if (t) clearTimeout(t); };
-  }, [isUploading]);
+  }, [isUploading, showToast]);
 
   const removeFile = (index: number) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
@@ -64,6 +66,7 @@ export default function UploadPage() {
     const anyUploadFailed = uploads.some(upload => upload.status === 'error');
 
     if (allUploadsSuccessful) {
+      showToast('העלאה הושלמה! 🎉', 'success');
       setShowSuccess(true);
       setTimeout(() => {
         setSelectedFiles([]);
@@ -74,9 +77,10 @@ export default function UploadPage() {
       }, 4500);
     }
     if (anyUploadFailed) {
+      showToast('חלק מהקבצים לא הועלו. נסו שוב 🙏', 'error');
       console.error("One or more uploads failed.", uploads.filter(upload => upload.status === 'error'));
     }
-  }, [uploads, navigate]);
+  }, [uploads, navigate, showToast]);
 
   return (
     <div className="min-h-screen wedding-gradient">

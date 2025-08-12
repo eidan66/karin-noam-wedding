@@ -82,6 +82,51 @@ async function presignSingle(file: File, caption: string, uploaderName: string, 
   return res.json() as Promise<{ url: string }>;
 }
 
+async function presignBatch(files: File[], caption: string, uploaderName: string, signal: AbortSignal): Promise<string[]> {
+  const payload = {
+    files: files.map(f => ({ filename: f.name, filetype: f.type, filesize: f.size, title: caption || "", uploaderName: uploaderName || "" }))
+  };
+  const res = await fetch(`${API_BASE}/uploads/presign/batch`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal
+  });
+  if (!res.ok) throw new Error('Batch presign failed');
+  const data = await res.json() as { urls: string[] };
+  return data.urls;
+}
+
+async function uploadPutWithRetry(url: string, file: File, idx: number, setUploads: React.Dispatch<React.SetStateAction<FileUploadState[]>>): Promise<void> {
+  const attempt = (tryNum: number) => new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', url, true);
+    xhr.setRequestHeader('Content-Type', file.type);
+    xhr.timeout = 180_000;
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        setUploads(prev => prev.map((u, i) => i === idx ? { ...u, progress: Math.round((event.loaded / event.total) * 100) } : u));
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`Upload failed (${xhr.status})`));
+    };
+    xhr.onerror = () => reject(new Error('Network error during upload'));
+    xhr.ontimeout = () => reject(new Error('Upload timeout'));
+    xhr.send(file);
+  });
+
+  let lastErr: unknown;
+  for (let t = 0; t < 3; t++) {
+    try {
+      await attempt(t);
+      return;
+    } catch (err) {
+      lastErr = err;
+      if (t < 2) await new Promise(r => setTimeout(r, 500 * Math.pow(2, t))); // backoff 0.5s,1s
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error('PUT failed');
+}
+
 export const useBulkUploader = () => {
   const [uploads, setUploads] = useState<FileUploadState[]>([]);
   const uploadControllers = useRef<AbortController[]>([]);
@@ -91,6 +136,16 @@ export const useBulkUploader = () => {
     setUploads(files.map(file => ({ file, status: 'pending' as UploadStatus, progress: 0 })));
 
     const concurrency = resolveConcurrency();
+
+    // Batch presign to reduce round-trips when there are many files
+    let batchUrls: string[] | null = null;
+    try {
+      if (files.length >= 6) {
+        batchUrls = await withRetry(() => presignBatch(files, caption, uploaderName, new AbortController().signal));
+      }
+    } catch {
+      batchUrls = null; // fallback to single
+    }
 
     await asyncPool<File, void>(concurrency, files, async (originalFile, idx) => {
       const controller = new AbortController();
@@ -116,47 +171,16 @@ export const useBulkUploader = () => {
         }
 
         // 1. Get pre-signed URL (with retry)
-        const { url } = await withRetry(() => presignSingle(file, caption, uploaderName, controller.signal));
+        let url: string;
+        if (batchUrls && batchUrls[idx]) {
+          url = batchUrls[idx];
+        } else {
+          const single = await withRetry(() => presignSingle(file, caption, uploaderName, controller.signal));
+          url = single.url;
+        }
 
         // 2. Upload to S3 with progress (and timeout)
-        await new Promise<void>((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open('PUT', url, true);
-          xhr.setRequestHeader('Content-Type', file.type);
-          xhr.timeout = 180_000; // 3 minutes per object
-          xhr.upload.onprogress = (event) => {
-            if (event.lengthComputable) {
-              setUploads(prev =>
-                prev.map((u, i) =>
-                  i === idx
-                    ? { ...u, progress: Math.round((event.loaded / event.total) * 100) }
-                    : u
-                )
-              );
-            }
-          };
-          xhr.ontimeout = () => {
-            setUploads(prev => prev.map((u, i) => i === idx ? { ...u, status: 'error', error: 'Upload timeout' } : u));
-            reject(new Error('Upload timeout'));
-          };
-          xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              resolve();
-            } else {
-              setUploads(prev => prev.map((u, i) => i === idx ? { ...u, status: 'error', error: `Upload failed (${xhr.status})` } : u));
-              reject(new Error(`Upload failed (${xhr.status})`));
-            }
-          };
-          xhr.onerror = () => {
-            setUploads(prev => prev.map((u, i) => i === idx ? { ...u, status: 'error', error: 'Network error during upload' } : u));
-            reject(new Error('Network error during upload'));
-          };
-          xhr.onabort = () => {
-            setUploads(prev => prev.map((u, i) => i === idx ? { ...u, status: 'error', error: 'Upload aborted' } : u));
-            reject(new Error('Upload aborted'));
-          };
-          xhr.send(file);
-        });
+        await uploadPutWithRetry(url, file, idx, setUploads);
 
         // 3. Generate thumbnail for videos (skip on mobile to keep UX snappy)
         let thumbnailUrl: string | undefined;
