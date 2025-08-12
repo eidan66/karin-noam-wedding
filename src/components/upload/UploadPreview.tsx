@@ -4,7 +4,7 @@ import { X, Image, Video, FileText } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import { generateVideoThumbnail } from "@/utils";
+import { generateVideoThumbnail, isMobile } from "@/utils";
 
 interface UploadPreviewProps {
   files: File[];
@@ -14,6 +14,7 @@ interface UploadPreviewProps {
 export default function UploadPreview({ files, onRemove }: UploadPreviewProps) {
   const [videoThumbnails, setVideoThumbnails] = useState<Record<string, string>>({});
   const [thumbnailLoading, setThumbnailLoading] = useState<Record<string, boolean>>({});
+  const [thumbnailErrors, setThumbnailErrors] = useState<Record<string, boolean>>({});
 
   const getFileIcon = (file: File): LucideIcon => {
     if (file.type.startsWith('image/')) return Image;
@@ -32,11 +33,17 @@ export default function UploadPreview({ files, onRemove }: UploadPreviewProps) {
     return null;
   };
 
-  // Generate thumbnails for video files
+  // Generate thumbnails for video files with mobile optimization
   useEffect(() => {
     const generateThumbnails = async () => {
+      // On mobile, skip thumbnail generation and show videos directly
+      if (isMobile()) {
+        return;
+      }
+
       const newThumbnails: Record<string, string> = {};
       const newLoading: Record<string, boolean> = {};
+      const newErrors: Record<string, boolean> = {};
       
       for (const file of files) {
         if (file.type.startsWith('video/')) {
@@ -45,8 +52,8 @@ export default function UploadPreview({ files, onRemove }: UploadPreviewProps) {
             const thumbnail = await generateVideoThumbnail(file);
             newThumbnails[file.name] = thumbnail;
           } catch (error) {
-            // Silently fail thumbnail generation - don't spam console
-            // The video will still show with the fallback UI
+            // Mark as error so we don't keep trying
+            newErrors[file.name] = true;
           } finally {
             newLoading[file.name] = false;
           }
@@ -54,6 +61,7 @@ export default function UploadPreview({ files, onRemove }: UploadPreviewProps) {
       }
       
       setThumbnailLoading(prev => ({ ...prev, ...newLoading }));
+      setThumbnailErrors(prev => ({ ...prev, ...newErrors }));
       setVideoThumbnails(prev => ({ ...prev, ...newThumbnails }));
     };
 
@@ -75,6 +83,7 @@ export default function UploadPreview({ files, onRemove }: UploadPreviewProps) {
         const previewUrl = getFilePreview(file);
         const isVideo = file.type.startsWith('video/');
         const isLoadingThumbnail = thumbnailLoading[file.name];
+        const hasThumbnailError = thumbnailErrors[file.name];
 
         return (
           <motion.div
@@ -90,8 +99,8 @@ export default function UploadPreview({ files, onRemove }: UploadPreviewProps) {
                 {previewUrl ? (
                   isVideo ? (
                     <div className="relative w-full h-full">
-                      {/* Show thumbnail if available */}
-                      {videoThumbnails[file.name] ? (
+                      {/* On mobile, always show video preview. On desktop, show thumbnail if available */}
+                      {!isMobile() && videoThumbnails[file.name] ? (
                         <img
                           src={videoThumbnails[file.name]}
                           alt={file.name}
@@ -99,12 +108,14 @@ export default function UploadPreview({ files, onRemove }: UploadPreviewProps) {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          {isLoadingThumbnail ? (
+                          {/* Show loading only on desktop when generating thumbnails */}
+                          {!isMobile() && isLoadingThumbnail ? (
                             <div className="text-center">
                               <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
                               <p className="text-xs text-gray-500">יוצר תמונה ממוזערת...</p>
                             </div>
                           ) : (
+                            /* Always show video preview on mobile, or if thumbnail generation failed */
                             <video
                               src={previewUrl}
                               controls={false}

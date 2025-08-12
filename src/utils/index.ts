@@ -87,11 +87,20 @@ export const generateVideoThumbnail = (videoFile: File): Promise<string> => {
     video.preload = 'metadata';
     video.crossOrigin = 'anonymous';
 
+    // Mobile-specific optimizations
+    if (isMobile()) {
+      // Use lower quality on mobile for better performance
+      canvas.width = 160; // Smaller canvas on mobile
+      canvas.height = 120;
+    }
+
     video.onloadedmetadata = () => {
       try {
         // Set canvas dimensions
-        canvas.width = video.videoWidth || 320;
-        canvas.height = video.videoHeight || 240;
+        if (!isMobile()) {
+          canvas.width = video.videoWidth || 320;
+          canvas.height = video.videoHeight || 240;
+        }
         
         // Seek to 0.1 seconds to get a frame (avoid black frame at 0)
         video.currentTime = 0.1;
@@ -106,7 +115,8 @@ export const generateVideoThumbnail = (videoFile: File): Promise<string> => {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
         // Convert to data URL with better quality
-        const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.9);
+        const quality = isMobile() ? 0.7 : 0.9; // Lower quality on mobile
+        const thumbnailUrl = canvas.toDataURL('image/jpeg', quality);
         handleSuccess(thumbnailUrl);
       } catch (error) {
         handleError(error as Error);
@@ -122,10 +132,10 @@ export const generateVideoThumbnail = (videoFile: File): Promise<string> => {
       handleError(new Error('Video loading was aborted'));
     };
 
-    // Set a timeout to prevent hanging
+    // Set a timeout to prevent hanging (shorter on mobile)
     const timeout = setTimeout(() => {
       handleError(new Error('Video thumbnail generation timed out'));
-    }, 10000); // 10 second timeout
+    }, isMobile() ? 5000 : 10000); // 5 seconds on mobile, 10 on desktop
 
     // Load the video
     try {
