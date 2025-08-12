@@ -48,13 +48,12 @@ export default function VideoPreview({
     const v = videoRef.current;
     if (!v) return;
     const onErr = () => {
-      const err = v.error as any;
-      // eslint-disable-next-line no-console
-      console.log("video error", err?.code, err?.message, { readyState: v.readyState, networkState: v.networkState, src: v.currentSrc });
+      const err = v.error;
+      console.debug("video error", err?.code, err?.message, { readyState: v.readyState, networkState: v.networkState, src: v.currentSrc });
     };
     v.addEventListener("error", onErr);
     return () => v.removeEventListener("error", onErr);
-  }, [videoRef.current]);
+  }, []);
 
   const handleVideoError = () => {
     setHasError(true);
@@ -87,11 +86,10 @@ export default function VideoPreview({
       )}
 
       {!showFallback && (
-        // @ts-expect-error - allow vendor attribute for iOS inline playback
         <video
           ref={videoRef}
           playsInline
-          webkit-playsinline="true"
+          {...({ 'webkit-playsinline': 'true' } as Record<string, string>)}
           muted
           loop
           autoPlay
