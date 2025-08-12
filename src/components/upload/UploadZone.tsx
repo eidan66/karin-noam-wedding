@@ -1,7 +1,8 @@
 "use client";
+
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Upload, Camera, Image, Video, Heart } from "lucide-react";
+import { Upload, Image, Video, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { RefObject, DragEvent, ChangeEvent } from 'react';
 
@@ -100,7 +101,7 @@ export default function UploadZone({
               בחרו קבצים
             </Button>
 
-            <Button
+            {/* <Button
               variant="outline"
               onClick={() => {
                 // Camera functionality would be implemented here
@@ -110,7 +111,7 @@ export default function UploadZone({
             >
               <Camera className="w-4 h-4 ml-2" />
               צלמו תמונה
-            </Button>
+            </Button> */}
           </div>
         </div>
       </motion.div>

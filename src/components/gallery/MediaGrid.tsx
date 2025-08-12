@@ -1,7 +1,8 @@
 "use client";
 import { motion } from "framer-motion";
-import { Play, Heart, User } from "lucide-react";
+import { User } from "lucide-react";
 import type { WeddingMediaItem } from "@/Entities/WeddingMedia";
+import VideoPreview from "./VideoPreview";
 
 interface MediaGridProps {
   media: WeddingMediaItem[];
@@ -31,21 +32,14 @@ export default function MediaGrid({ media, onMediaClick }: MediaGridProps) {
                   loading="lazy"
                 />
               ) : (
-                <div className="relative">
-                  <video
-                    src={item.media_url}
-                    poster={item.thumbnail_url}
-                    controls={false}
-                    muted
-                    loop
-                    className="w-full h-auto object-cover group-hover:scale-110 transition-transform duration-700"
-                  />
-                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center group-hover:bg-black/30 transition-colors duration-300">
-                    <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                      <Play className="w-8 h-8 text-emerald-600 ml-1" />
-                    </div>
-                  </div>
-                </div>
+                <VideoPreview
+                  src={item.media_url}
+                  thumbnailUrl={item.thumbnail_url}
+                  className="w-full h-auto object-cover group-hover:scale-110 transition-transform duration-700"
+                  onError={() => {
+                    console.warn('Video failed to load in MediaGrid');
+                  }}
+                />
               )}
               
               {/* Hover Overlay */}
@@ -67,12 +61,12 @@ export default function MediaGrid({ media, onMediaClick }: MediaGridProps) {
               )}
             </div>
 
-            {/* Love Heart Effect */}
+            {/* Love Heart Effect
             <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
               <div className="w-8 h-8 bg-white/90 rounded-full flex items-center justify-center shadow-lg">
                 <Heart className="w-4 h-4 text-red-500" />
               </div>
-            </div>
+            </div> */}
           </div>
         </motion.div>
       ))}

@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { API_BASE } from '../config';
 import { WeddingMedia } from '../Entities/WeddingMedia';
 import type { WeddingMediaItem } from '../Entities/WeddingMedia';
+import { generateVideoThumbnail } from '../utils';
 
 async function asyncPool<T, R>(
   poolLimit: number,
@@ -96,13 +97,27 @@ export const useBulkUploader = () => {
           xhr.onload = async () => {
             if (xhr.status === 200) {
               try {
-                // 3. Create media item in backend after S3 upload succeeds
+                // 3. Generate thumbnail for videos
+                let thumbnailUrl: string | undefined;
+                if (file.type.startsWith('video/')) {
+                  try {
+                    console.time(`Upload file ${file.name}: Generate thumbnail`);
+                    thumbnailUrl = await generateVideoThumbnail(file);
+                    console.timeEnd(`Upload file ${file.name}: Generate thumbnail`);
+                  } catch (thumbnailError) {
+                    console.warn('Failed to generate thumbnail for video:', file.name, thumbnailError);
+                    // Continue without thumbnail
+                  }
+                }
+
+                // 4. Create media item in backend after S3 upload succeeds
                 console.time(`Upload file ${file.name}: Create media item`);
                 const mediaParams = {
                   title: caption || "",
                   media_url: url.split('?')[0],
-                  media_type: (file.type.startsWith('image/') ? 'image' : 'video') as WeddingMediaItem['media_type'],
-                  uploader_name: uploaderName || "אורח אנונימי"
+                  media_type: (file.type.startsWith('image/') ? 'photo' : 'video') as 'photo' | 'video',
+                  uploader_name: uploaderName || "אורח אנונימי",
+                  thumbnail_url: thumbnailUrl
                 };
                 const createdMedia = await WeddingMedia.create(mediaParams);
                 console.timeEnd(`Upload file ${file.name}: Create media item`);

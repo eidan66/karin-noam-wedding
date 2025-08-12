@@ -3,6 +3,8 @@ import { motion } from "framer-motion";
 import { X, Image, Video, FileText } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { generateVideoThumbnail } from "@/utils";
 
 interface UploadPreviewProps {
   files: File[];
@@ -10,6 +12,9 @@ interface UploadPreviewProps {
 }
 
 export default function UploadPreview({ files, onRemove }: UploadPreviewProps) {
+  const [videoThumbnails, setVideoThumbnails] = useState<Record<string, string>>({});
+  const [thumbnailLoading, setThumbnailLoading] = useState<Record<string, boolean>>({});
+
   const getFileIcon = (file: File): LucideIcon => {
     if (file.type.startsWith('image/')) return Image;
     if (file.type.startsWith('video/')) return Video;
@@ -17,11 +22,43 @@ export default function UploadPreview({ files, onRemove }: UploadPreviewProps) {
   };
 
   const getFilePreview = (file: File): string | null => {
-    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+    if (file.type.startsWith('image/')) {
       return URL.createObjectURL(file);
+    }
+    if (file.type.startsWith('video/')) {
+      // Return thumbnail if available, otherwise return video URL
+      return videoThumbnails[file.name] || URL.createObjectURL(file);
     }
     return null;
   };
+
+  // Generate thumbnails for video files
+  useEffect(() => {
+    const generateThumbnails = async () => {
+      const newThumbnails: Record<string, string> = {};
+      const newLoading: Record<string, boolean> = {};
+      
+      for (const file of files) {
+        if (file.type.startsWith('video/')) {
+          newLoading[file.name] = true;
+          try {
+            const thumbnail = await generateVideoThumbnail(file);
+            newThumbnails[file.name] = thumbnail;
+          } catch (error) {
+            // Silently fail thumbnail generation - don't spam console
+            // The video will still show with the fallback UI
+          } finally {
+            newLoading[file.name] = false;
+          }
+        }
+      }
+      
+      setThumbnailLoading(prev => ({ ...prev, ...newLoading }));
+      setVideoThumbnails(prev => ({ ...prev, ...newThumbnails }));
+    };
+
+    generateThumbnails();
+  }, [files]);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -36,6 +73,8 @@ export default function UploadPreview({ files, onRemove }: UploadPreviewProps) {
       {files.map((file, index) => {
         const FileIcon = getFileIcon(file);
         const previewUrl = getFilePreview(file);
+        const isVideo = file.type.startsWith('video/');
+        const isLoadingThumbnail = thumbnailLoading[file.name];
 
         return (
           <motion.div
@@ -49,18 +88,54 @@ export default function UploadPreview({ files, onRemove }: UploadPreviewProps) {
               {/* Preview */}
               <div className="aspect-square bg-gradient-to-br from-cream-100 to-gold-100 relative overflow-hidden">
                 {previewUrl ? (
-                  file.type.startsWith('image/') ? (
+                  isVideo ? (
+                    <div className="relative w-full h-full">
+                      {/* Show thumbnail if available */}
+                      {videoThumbnails[file.name] ? (
+                        <img
+                          src={videoThumbnails[file.name]}
+                          alt={file.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          {isLoadingThumbnail ? (
+                            <div className="text-center">
+                              <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                              <p className="text-xs text-gray-500">יוצר תמונה ממוזערת...</p>
+                            </div>
+                          ) : (
+                            <video
+                              src={previewUrl}
+                              controls={false}
+                              muted
+                              loop
+                              playsInline
+                              preload="metadata"
+                              className="w-full h-full object-cover"
+                              onLoadedData={(e) => {
+                                // Force video to show first frame
+                                const video = e.target as HTMLVideoElement;
+                                if (video.readyState >= 2) {
+                                  video.currentTime = 0.1;
+                                }
+                              }}
+                            />
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Video indicator overlay */}
+                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                        <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center shadow-lg">
+                          <Video className="w-6 h-6 text-emerald-600" />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
                     <img
                       src={previewUrl}
                       alt={file.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <video
-                      src={previewUrl}
-                      controls={false}
-                      muted
-                      loop
                       className="w-full h-full object-cover"
                     />
                   )
@@ -71,14 +146,15 @@ export default function UploadPreview({ files, onRemove }: UploadPreviewProps) {
                 )}
                 
                 {/* Remove Button (Always visible in this preview stage) */}
-                   <Button
-                     variant="ghost"
-                     size="icon"
-                     onClick={() => onRemove(index)}
-                     className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                   >
-                     <X className="w-4 h-4" />
-                   </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onRemove(index)}
+                  className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg border border-red-400 transition-all duration-200 z-10"
+                  title="הסר קובץ"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
               </div>
 
               {/* File Info */}

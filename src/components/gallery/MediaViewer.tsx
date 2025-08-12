@@ -128,6 +128,16 @@ export default function MediaViewer({
                 controls
                 className="w-full h-full object-contain rounded-2xl shadow-2xl"
                 autoPlay
+                playsInline
+                preload="metadata"
+                poster={media.thumbnail_url}
+                onLoadedData={(e) => {
+                  // Ensure video shows first frame
+                  const video = e.target as HTMLVideoElement;
+                  if (video.readyState >= 2) {
+                    video.currentTime = 0;
+                  }
+                }}
               />
             )}
 
