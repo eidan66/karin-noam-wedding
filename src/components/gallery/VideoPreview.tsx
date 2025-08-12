@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Play } from "lucide-react";
 import VideoPlaceholder from "./VideoPlaceholder";
 import { isMobile } from "@/utils";
@@ -23,6 +23,8 @@ export default function VideoPreview({
   const [isLoading, setIsLoading] = useState(!isMobile());
   const [showFallback, setShowFallback] = useState(false);
   const [posterVisible, setPosterVisible] = useState(true);
+  const [isReady, setIsReady] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   const isIOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent);
 
@@ -31,33 +33,52 @@ export default function VideoPreview({
     setIsLoading(!isMobile());
     setShowFallback(false);
     setPosterVisible(true);
+    setIsReady(false);
   }, [mp4Url]);
 
-  const handleVideoLoad = (e: React.SyntheticEvent<HTMLVideoElement>) => {
-    const video = e.currentTarget;
-    setIsLoading(false);
-    if (video.readyState >= 2) {
-      video.currentTime = 0;
-    }
-  };
+  // Failsafe: if events never fire on iOS, hide overlay after a short delay
+  useEffect(() => {
+    if (isReady) return;
+    const t = setTimeout(() => setIsReady(true), 3000);
+    return () => clearTimeout(t);
+  }, [isReady, mp4Url, posterUrl]);
+
+  // Optional: log video element errors to help diagnose
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const onErr = () => {
+      const err = v.error as any;
+      // eslint-disable-next-line no-console
+      console.log("video error", err?.code, err?.message, { readyState: v.readyState, networkState: v.networkState, src: v.currentSrc });
+    };
+    v.addEventListener("error", onErr);
+    return () => v.removeEventListener("error", onErr);
+  }, [videoRef.current]);
 
   const handleVideoError = () => {
     setHasError(true);
     setIsLoading(false);
-    // If we have a poster, keep showing it; otherwise show generic fallback
     setShowFallback(!posterUrl);
     onError?.();
   };
 
-  const handleVideoCanPlay = () => {
+  const handleCanPlay = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     setIsLoading(false);
+    setIsReady(true);
+    const v = e.currentTarget;
+    if (v.readyState >= 2) {
+      try { v.currentTime = 0.001; } catch {}
+    }
+    // Once playable, we can hide the poster overlay
     setPosterVisible(false);
   };
 
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative aspect-video ${className}`}>
       {/* If video failed but we have a poster, show the poster explicitly */}
       {hasError && posterUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={posterUrl}
           alt="Video poster"
@@ -66,27 +87,27 @@ export default function VideoPreview({
       )}
 
       {!showFallback && (
+        // @ts-expect-error - allow vendor attribute for iOS inline playback
         <video
+          ref={videoRef}
           playsInline
+          webkit-playsinline="true"
           muted
           loop
           autoPlay
-          preload="auto"
+          preload={isIOS ? "metadata" : "auto"}
           poster={posterUrl}
-          onLoadedMetadata={(e) => {
-            try {
-              e.currentTarget.currentTime = 0.01;
-            } catch {}
-            setPosterVisible(false);
-          }}
-          className="w-full h-full object-cover"
+          crossOrigin="anonymous"
+          disableRemotePlayback
+          controls={false}
+          className="absolute inset-0 h-full w-full object-cover"
           onLoadStart={() => !isMobile() && setIsLoading(true)}
-          onLoadedData={handleVideoLoad}
-          onCanPlay={handleVideoCanPlay}
+          onCanPlay={handleCanPlay}
           onError={handleVideoError}
         >
-          {!isIOS && webmUrl && <source src={webmUrl} type="video/webm" />}
+          {/* Prefer MP4 first for iOS; keep generic type for broad compatibility */}
           <source src={mp4Url} type="video/mp4" />
+          {!isIOS && webmUrl && <source src={webmUrl} type="video/webm" />}
         </video>
       )}
 
@@ -100,8 +121,8 @@ export default function VideoPreview({
         <VideoPlaceholder className="w-full h-full" />
       )}
 
-      {/* Overlay (play circle) while loading or while we explicitly show poster */}
-      {(!showFallback && (isLoading || posterVisible || (hasError && !!posterUrl))) && (
+      {/* Overlay (play circle) while loading / showing poster / not yet ready */}
+      {(!showFallback && (isLoading || posterVisible || !isReady || (hasError && !!posterUrl))) && (
         <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
           <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-lg">
             <Play className="w-8 h-8 text-emerald-600 ml-1" />
