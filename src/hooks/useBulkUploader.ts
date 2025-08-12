@@ -2,24 +2,25 @@ import { useState, useRef } from 'react';
 import { API_BASE } from '../config';
 import { WeddingMedia } from '../Entities/WeddingMedia';
 import type { WeddingMediaItem } from '../Entities/WeddingMedia';
-import { generateVideoThumbnail } from '../utils';
+import { generateVideoThumbnail, isMobile } from '../utils';
 
 async function asyncPool<T, R>(
   poolLimit: number,
   array: T[],
   iteratorFn: (item: T, index: number, array: T[]) => Promise<R>
 ): Promise<R[]> {
-  const ret: R[] = [];
+  const ret: Promise<R>[] = [];
   const executing: Promise<void>[] = [];
   for (const [i, item] of array.entries()) {
-    const p = Promise.resolve().then(() => iteratorFn(item, i, array));
-    ret.push(p as unknown as R);
-    if (poolLimit <= array.length) {
-      const e = p.then(() => executing.splice(executing.indexOf(e), 1)) as Promise<void>;
-      executing.push(e);
-      if (executing.length >= poolLimit) {
-        await Promise.race(executing);
-      }
+    const p: Promise<R> = Promise.resolve().then(() => iteratorFn(item, i, array));
+    ret.push(p);
+    const e: Promise<void> = p.then(() => {
+      const idx = executing.indexOf(e);
+      if (idx >= 0) executing.splice(idx, 1);
+    }) as unknown as Promise<void>;
+    executing.push(e);
+    if (executing.length >= poolLimit) {
+      await Promise.race(executing);
     }
   }
   return Promise.all(ret);
@@ -35,7 +36,29 @@ export interface FileUploadState {
   mediaItem?: WeddingMediaItem;
 }
 
-const MAX_CONCURRENT_UPLOADS = 4;
+function resolveConcurrency(): number {
+  const mobile = isMobile();
+  const nav = typeof navigator !== 'undefined' ? (navigator as Navigator & { hardwareConcurrency?: number; connection?: { effectiveType?: string } }) : undefined;
+  const hw = nav?.hardwareConcurrency ?? 4;
+  const network = nav?.connection?.effectiveType;
+  const slowNet = network ? ['2g', 'slow-2g', '3g'].includes(network) : false;
+  if (mobile) return slowNet ? 2 : 3;
+  return Math.min(Math.max(hw - 2, 3), 6);
+}
+
+async function withRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      await new Promise(r => setTimeout(r, 300 * (i + 1)));
+    }
+  }
+  if (lastErr instanceof Error) throw lastErr;
+  throw new Error('Operation failed');
+}
 
 export const useBulkUploader = () => {
   const [uploads, setUploads] = useState<FileUploadState[]>([]);
@@ -45,7 +68,9 @@ export const useBulkUploader = () => {
     uploadControllers.current = [];
     setUploads(files.map(file => ({ file, status: 'pending' as UploadStatus, progress: 0 })));
 
-    await asyncPool(MAX_CONCURRENT_UPLOADS, files, async (file, idx) => {
+    const concurrency = resolveConcurrency();
+
+    await asyncPool<File, void>(concurrency, files, async (file, idx) => {
       const controller = new AbortController();
       uploadControllers.current[idx] = controller;
 
@@ -54,35 +79,42 @@ export const useBulkUploader = () => {
           i === idx ? { ...u, status: 'uploading' as UploadStatus, progress: 0 } : u
         )
       );
-      try {
-        // 1. Get pre-signed URL
-        console.time(`Upload file ${file.name}: Get pre-signed URL`);
-        const res = await fetch(`${API_BASE}/upload-url`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            filename: file.name,
-            filetype: file.type,
-            filesize: file.size,
-            title: caption || "",
-            uploaderName: uploaderName || ""
-          }),
-          signal: controller.signal,
-        });
-        console.timeEnd(`Upload file ${file.name}: Get pre-signed URL`);
-        if (!res.ok) {
-          const errorData = await res.json();
-          const errorMsg = `[${errorData.code || 'ERROR'}] ${errorData.message || 'Failed to get upload URL'}`;
-          throw new Error(errorMsg);
-        }
-        const { url } = await res.json();
 
-        // 2. Upload to S3 with progress
-        console.time(`Upload file ${file.name}: Upload to S3`);
+      try {
+        // 1. Get pre-signed URL (with retry)
+        const { url } = await withRetry(async () => {
+          const res = await fetch(`${API_BASE}/upload-url`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filename: file.name,
+              filetype: file.type,
+              filesize: file.size,
+              title: caption || "",
+              uploaderName: uploaderName || ""
+            }),
+            signal: controller.signal,
+          });
+          if (!res.ok) {
+            // Best-effort parse
+            let code: string | undefined; let message: string | undefined;
+            try {
+              const data = await res.json();
+              code = (data as { code?: string }).code;
+              message = (data as { message?: string }).message;
+            } catch {}
+            const errorMsg = `[${code || 'ERROR'}] ${message || 'Failed to get upload URL'}`;
+            throw new Error(errorMsg);
+          }
+          return res.json() as Promise<{ url: string }>; 
+        });
+
+        // 2. Upload to S3 with progress (and timeout)
         await new Promise<void>((resolve, reject) => {
           const xhr = new XMLHttpRequest();
           xhr.open('PUT', url, true);
           xhr.setRequestHeader('Content-Type', file.type);
+          xhr.timeout = 180_000; // 3 minutes per object
           xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
               setUploads(prev =>
@@ -94,86 +126,55 @@ export const useBulkUploader = () => {
               );
             }
           };
-          xhr.onload = async () => {
-            if (xhr.status === 200) {
-              try {
-                // 3. Generate thumbnail for videos
-                let thumbnailUrl: string | undefined;
-                if (file.type.startsWith('video/')) {
-                  try {
-                    console.time(`Upload file ${file.name}: Generate thumbnail`);
-                    thumbnailUrl = await generateVideoThumbnail(file);
-                    console.timeEnd(`Upload file ${file.name}: Generate thumbnail`);
-                  } catch (thumbnailError) {
-                    console.warn('Failed to generate thumbnail for video:', file.name, thumbnailError);
-                    // Continue without thumbnail
-                  }
-                }
-
-                // 4. Create media item in backend after S3 upload succeeds
-                console.time(`Upload file ${file.name}: Create media item`);
-                const mediaParams = {
-                  title: caption || "",
-                  media_url: url.split('?')[0],
-                  media_type: (file.type.startsWith('image/') ? 'photo' : 'video') as 'photo' | 'video',
-                  uploader_name: uploaderName || "אורח אנונימי",
-                  thumbnail_url: thumbnailUrl
-                };
-                const createdMedia = await WeddingMedia.create(mediaParams);
-                console.timeEnd(`Upload file ${file.name}: Create media item`);
-
-                setUploads(prev =>
-                  prev.map((u, i) =>
-                    i === idx ? { ...u, status: 'success' as UploadStatus, progress: 100, mediaItem: createdMedia } : u
-                  )
-                );
-                resolve();
-              } catch (createError) {
-                console.error('Error creating media item after S3 upload:', createError);
-                setUploads(prev =>
-                  prev.map((u, i) =>
-                    i === idx
-                      ? { ...u, status: 'error' as UploadStatus, error: (createError as Error).message }
-                      : u
-                  )
-                );
-                reject(createError);
-              }
+          xhr.ontimeout = () => {
+            setUploads(prev => prev.map((u, i) => i === idx ? { ...u, status: 'error', error: 'Upload timeout' } : u));
+            reject(new Error('Upload timeout'));
+          };
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve();
             } else {
-              setUploads(prev =>
-                prev.map((u, i) =>
-                  i === idx
-                    ? { ...u, status: 'error' as UploadStatus, error: `Upload failed (${xhr.status})` }
-                    : u
-                )
-              );
+              setUploads(prev => prev.map((u, i) => i === idx ? { ...u, status: 'error', error: `Upload failed (${xhr.status})` } : u));
               reject(new Error(`Upload failed (${xhr.status})`));
             }
           };
           xhr.onerror = () => {
-            setUploads(prev =>
-              prev.map((u, i) =>
-                i === idx
-                  ? { ...u, status: 'error' as UploadStatus, error: 'Network error during upload' }
-                  : u
-              )
-            );
+            setUploads(prev => prev.map((u, i) => i === idx ? { ...u, status: 'error', error: 'Network error during upload' } : u));
             reject(new Error('Network error during upload'));
           };
           xhr.onabort = () => {
-            setUploads(prev =>
-              prev.map((u, i) =>
-                i === idx
-                  ? { ...u, status: 'error' as UploadStatus, error: 'Upload aborted' }
-                  : u
-              )
-            );
+            setUploads(prev => prev.map((u, i) => i === idx ? { ...u, status: 'error', error: 'Upload aborted' } : u));
             reject(new Error('Upload aborted'));
           };
           xhr.send(file);
         });
+
+        // 3. Generate thumbnail for videos (skip on mobile to keep UX snappy)
+        let thumbnailUrl: string | undefined;
+        if (file.type.startsWith('video/') && !isMobile()) {
+          try {
+            thumbnailUrl = await generateVideoThumbnail(file);
+          } catch {
+            // ignore thumbnail errors on background
+          }
+        }
+
+        // 4. Create media item in backend after S3 upload succeeds
+        const mediaParams = {
+          title: caption || "",
+          media_url: url.split('?')[0],
+          media_type: (file.type.startsWith('image/') ? 'photo' : 'video') as 'photo' | 'video',
+          uploader_name: uploaderName || "אורח אנונימי",
+          thumbnail_url: thumbnailUrl
+        };
+        const createdMedia = await WeddingMedia.create(mediaParams);
+
+        setUploads(prev =>
+          prev.map((u, i) =>
+            i === idx ? { ...u, status: 'success' as UploadStatus, progress: 100, mediaItem: createdMedia } : u
+          )
+        );
       } catch (err) {
-        console.error('Error during upload process:', err);
         setUploads(prev =>
           prev.map((u, i) =>
             i === idx
