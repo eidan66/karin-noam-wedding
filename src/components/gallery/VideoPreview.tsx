@@ -36,14 +36,14 @@ export default function VideoPreview({
     setIsReady(false);
   }, [mp4Url]);
 
-  // Failsafe: if events never fire on iOS, hide overlay after a short delay
+  // Failsafe: if events never fire, hide overlay after a short delay
   useEffect(() => {
     if (isReady) return;
     const t = setTimeout(() => setIsReady(true), 3000);
     return () => clearTimeout(t);
   }, [isReady, mp4Url, posterUrl]);
 
-  // Optional: log video element errors to help diagnose
+  // Optional: log video element errors
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
@@ -62,6 +62,12 @@ export default function VideoPreview({
     onError?.();
   };
 
+  const handleLoadedMetadata = () => {
+    // On some Androids, canplay is delayed; once metadata is available, allow poster/overlay to hide
+    setIsReady(true);
+    setPosterVisible(false);
+  };
+
   const handleCanPlay = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     setIsLoading(false);
     setIsReady(true);
@@ -69,13 +75,11 @@ export default function VideoPreview({
     if (v.readyState >= 2) {
       try { v.currentTime = 0.001; } catch {}
     }
-    // Once playable, we can hide the poster overlay
     setPosterVisible(false);
   };
 
   return (
     <div className={`relative aspect-video ${className}`}>
-      {/* If video failed but we have a poster, show the poster explicitly */}
       {hasError && posterUrl && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -100,12 +104,13 @@ export default function VideoPreview({
           controls={false}
           className="absolute inset-0 h-full w-full object-cover"
           onLoadStart={() => !isMobile() && setIsLoading(true)}
+          onLoadedMetadata={handleLoadedMetadata}
           onCanPlay={handleCanPlay}
           onError={handleVideoError}
         >
-          {/* Prefer MP4 first for iOS; keep generic type for broad compatibility */}
-          <source src={mp4Url} type="video/mp4" />
+          {/* Prefer WebM first on non‑iOS; iOS gets MP4 only */}
           {!isIOS && webmUrl && <source src={webmUrl} type="video/webm" />}
+          <source src={mp4Url} type="video/mp4" />
         </video>
       )}
 
@@ -119,7 +124,6 @@ export default function VideoPreview({
         <VideoPlaceholder className="w-full h-full" />
       )}
 
-      {/* Overlay (play circle) while loading / showing poster / not yet ready */}
       {(!showFallback && (isLoading || posterVisible || !isReady || (hasError && !!posterUrl))) && (
         <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
           <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-lg">

@@ -122,14 +122,15 @@ export default function UploadPreview({ files, onRemove }: UploadPreviewProps) {
                               controls={false}
                               muted
                               loop
+                              autoPlay
                               playsInline
+                              {...({ 'webkit-playsinline': 'true' } as Record<string, string>)}
                               preload="metadata"
                               className="w-full h-full object-cover"
-                              onLoadedData={(e) => {
-                                // Force video to show first frame
-                                const video = e.target as HTMLVideoElement;
-                                if (video.readyState >= 2) {
-                                  video.currentTime = 0.1;
+                              onCanPlay={(e) => {
+                                const v = e.currentTarget as HTMLVideoElement;
+                                if (v.readyState >= 2) {
+                                  try { v.currentTime = 0.001; } catch {}
                                 }
                               }}
                             />
