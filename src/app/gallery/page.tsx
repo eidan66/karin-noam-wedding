@@ -26,6 +26,8 @@ export default function GalleryPage() {
   const [selectedMedia, setSelectedMedia] = useState<WeddingMediaItem | null>(null);
   const [activeFilter, setActiveFilter] = useState<"all" | "photo" | "video">("all");
   const [viewerIndex, setViewerIndex] = useState(0);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
+  const [totals, setTotals] = useState<{ all?: number; photos?: number; videos?: number }>({});
 
   const loader = useRef<HTMLDivElement | null>(null);
 
@@ -72,6 +74,19 @@ export default function GalleryPage() {
 
   useEffect(() => {
     fetchMedia(1);
+    // Fetch total counts independently
+    Promise.all([
+      fetch('/api/media/count').then(r=>r.json()).catch(()=>({})),
+      fetch('/api/media/count?type=photo').then(r=>r.json()).catch(()=>({})),
+      fetch('/api/media/count?type=video').then(r=>r.json()).catch(()=>({})),
+    ]).then(([all, photos, videos]) => {
+      if (typeof all.total === 'number') setTotalCount(all.total);
+      setTotals({
+        all: typeof all.total === 'number' ? all.total : undefined,
+        photos: typeof photos.total === 'number' ? photos.total : undefined,
+        videos: typeof videos.total === 'number' ? videos.total : undefined,
+      });
+    });
   }, [fetchMedia]);
 
   useEffect(() => {
@@ -112,13 +127,16 @@ export default function GalleryPage() {
   return (
     <div className="min-h-screen wedding-gradient">
       <div className="max-w-7xl mx-auto px-4 py-8 pb-24 md:pb-8">
-        <GalleryHeader mediaCount={media.length} />
+        <GalleryHeader mediaCount={totalCount ?? media.length} />
 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <FilterTabs 
             activeFilter={activeFilter} 
             onFilterChange={setActiveFilter}
             media={media}
+            totalAll={totals.all}
+            totalPhotos={totals.photos}
+            totalVideos={totals.videos}
           />
           
           <Link href={createPageUrl("Upload")}>

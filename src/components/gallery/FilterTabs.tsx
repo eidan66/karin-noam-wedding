@@ -16,6 +16,9 @@ interface FilterTabsProps {
   activeFilter: 'all' | 'photo' | 'video';
   onFilterChange: (filter: 'all' | 'photo' | 'video') => void;
   media: MediaItem[];
+  totalAll?: number;
+  totalPhotos?: number;
+  totalVideos?: number;
 }
 
 interface FilterOption {
@@ -25,12 +28,13 @@ interface FilterOption {
   count: number;
 }
 
-export default function FilterTabs({ activeFilter, onFilterChange, media }: FilterTabsProps) {
-  const photoCount = media.filter(item => item.media_type === 'photo').length;
-  const videoCount = media.filter(item => item.media_type === 'video').length;
+export default function FilterTabs({ activeFilter, onFilterChange, media, totalAll, totalPhotos, totalVideos }: FilterTabsProps) {
+  const photoCount = totalPhotos ?? media.filter(item => item.media_type === 'photo').length;
+  const videoCount = totalVideos ?? media.filter(item => item.media_type === 'video').length;
+  const allCount = totalAll ?? (photoCount + videoCount);
 
   const filters: FilterOption[] = [
-    { id: 'all', label: 'כל הזכרונות', icon: Grid3X3, count: media.length },
+    { id: 'all', label: 'כל הזכרונות', icon: Grid3X3, count: allCount },
     { id: 'photo', label: 'תמונות', icon: Camera, count: photoCount },
     { id: 'video', label: 'סרטונים', icon: Video, count: videoCount },
   ];

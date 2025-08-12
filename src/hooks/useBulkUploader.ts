@@ -197,5 +197,7 @@ export const useBulkUploader = () => {
     uploadControllers.current.forEach(controller => controller?.abort());
   };
 
-  return { uploads, uploadFiles, cancelUploads };
+  const isUploading = uploads.some(u => u.status === 'uploading' || u.status === 'pending');
+
+  return { uploads, uploadFiles, cancelUploads, isUploading };
 };
