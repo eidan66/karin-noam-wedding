@@ -3,6 +3,7 @@ import { API_BASE } from '../config';
 import { WeddingMedia } from '../Entities/WeddingMedia';
 import type { WeddingMediaItem } from '../Entities/WeddingMedia';
 import { generateVideoThumbnail, isMobile } from '../utils';
+import { compressImage, replaceExtension } from '../utils/compress';
 
 async function asyncPool<T, R>(
   poolLimit: number,
@@ -14,10 +15,10 @@ async function asyncPool<T, R>(
   for (const [i, item] of array.entries()) {
     const p: Promise<R> = Promise.resolve().then(() => iteratorFn(item, i, array));
     ret.push(p);
-    const e: Promise<void> = p.then(() => {
+    const e: Promise<void> = (p.then(() => {
       const idx = executing.indexOf(e);
       if (idx >= 0) executing.splice(idx, 1);
-    }) as unknown as Promise<void>;
+    }) as unknown) as Promise<void>;
     executing.push(e);
     if (executing.length >= poolLimit) {
       await Promise.race(executing);
@@ -43,7 +44,7 @@ function resolveConcurrency(): number {
   const network = nav?.connection?.effectiveType;
   const slowNet = network ? ['2g', 'slow-2g', '3g'].includes(network) : false;
   if (mobile) return slowNet ? 2 : 3;
-  return Math.min(Math.max(hw - 2, 3), 6);
+  return Math.min(Math.max(hw - 2, 3), 8);
 }
 
 async function withRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
@@ -60,6 +61,27 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 2): Promise<T> {
   throw new Error('Operation failed');
 }
 
+async function presignSingle(file: File, caption: string, uploaderName: string, signal: AbortSignal): Promise<{ url: string }> {
+  const res = await fetch(`${API_BASE}/upload-url`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      filename: file.name,
+      filetype: file.type,
+      filesize: file.size,
+      title: caption || "",
+      uploaderName: uploaderName || ""
+    }),
+    signal,
+  });
+  if (!res.ok) {
+    let code: string | undefined; let message: string | undefined;
+    try { const data = await res.json(); code = (data as { code?: string }).code; message = (data as { message?: string }).message; } catch {}
+    throw new Error(`[${code || 'ERROR'}] ${message || 'Failed to get upload URL'}`);
+  }
+  return res.json() as Promise<{ url: string }>;
+}
+
 export const useBulkUploader = () => {
   const [uploads, setUploads] = useState<FileUploadState[]>([]);
   const uploadControllers = useRef<AbortController[]>([]);
@@ -70,7 +92,7 @@ export const useBulkUploader = () => {
 
     const concurrency = resolveConcurrency();
 
-    await asyncPool<File, void>(concurrency, files, async (file, idx) => {
+    await asyncPool<File, void>(concurrency, files, async (originalFile, idx) => {
       const controller = new AbortController();
       uploadControllers.current[idx] = controller;
 
@@ -81,33 +103,20 @@ export const useBulkUploader = () => {
       );
 
       try {
-        // 1. Get pre-signed URL (with retry)
-        const { url } = await withRetry(async () => {
-          const res = await fetch(`${API_BASE}/upload-url`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              filename: file.name,
-              filetype: file.type,
-              filesize: file.size,
-              title: caption || "",
-              uploaderName: uploaderName || ""
-            }),
-            signal: controller.signal,
-          });
-          if (!res.ok) {
-            // Best-effort parse
-            let code: string | undefined; let message: string | undefined;
-            try {
-              const data = await res.json();
-              code = (data as { code?: string }).code;
-              message = (data as { message?: string }).message;
-            } catch {}
-            const errorMsg = `[${code || 'ERROR'}] ${message || 'Failed to get upload URL'}`;
-            throw new Error(errorMsg);
+        // Compress images on client to accelerate uploads massively
+        let file = originalFile;
+        if (file.type.startsWith('image/')) {
+          try {
+            const blob = await compressImage(file, { maxDimension: 2048, quality: 0.72 });
+            const newName = replaceExtension(file.name, '.jpg');
+            file = new File([blob], newName, { type: 'image/jpeg' });
+          } catch {
+            // If compression fails, fall back to original
           }
-          return res.json() as Promise<{ url: string }>; 
-        });
+        }
+
+        // 1. Get pre-signed URL (with retry)
+        const { url } = await withRetry(() => presignSingle(file, caption, uploaderName, controller.signal));
 
         // 2. Upload to S3 with progress (and timeout)
         await new Promise<void>((resolve, reject) => {
@@ -154,9 +163,7 @@ export const useBulkUploader = () => {
         if (file.type.startsWith('video/') && !isMobile()) {
           try {
             thumbnailUrl = await generateVideoThumbnail(file);
-          } catch {
-            // ignore thumbnail errors on background
-          }
+          } catch {}
         }
 
         // 4. Create media item in backend after S3 upload succeeds

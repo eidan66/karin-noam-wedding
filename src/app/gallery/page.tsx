@@ -27,7 +27,7 @@ export default function GalleryPage() {
   const [activeFilter, setActiveFilter] = useState<"all" | "photo" | "video">("all");
   const [viewerIndex, setViewerIndex] = useState(0);
 
-  const loader = useRef(null);
+  const loader = useRef<HTMLDivElement | null>(null);
 
   const fetchMedia = useCallback(async (pageToLoad: number) => {
     if (pageToLoad === 1) {
@@ -35,10 +35,10 @@ export default function GalleryPage() {
     } else {
       setIsLoadingMore(true);
     }
-    
+
     try {
       const data = await WeddingMedia.list("-created_date", pageToLoad, ITEMS_PER_PAGE);
-      
+
       const mappedMedia: WeddingMediaItem[] = data.items.map(item => ({
         id: item.id,
         media_url: item.url,
@@ -48,47 +48,42 @@ export default function GalleryPage() {
         created_date: item.created_date || new Date().toISOString(),
         thumbnail_url: item.thumbnail_url,
       }));
-      
+
       if (pageToLoad === 1) {
         setMedia(mappedMedia);
       } else {
         setMedia(prevMedia => [...prevMedia, ...mappedMedia]);
       }
 
-      setHasMore(media.length + mappedMedia.length < (data.total_items ?? 0));
+      // Prefer server hasMore; fallback: if page returned a full page, assume more
+      const anyData = data as unknown as { hasMore?: boolean };
+      const more = typeof anyData.hasMore === 'boolean' ? anyData.hasMore : (mappedMedia.length === ITEMS_PER_PAGE);
+      setHasMore(more);
       setPage(pageToLoad);
 
     } catch (error) {
       console.error("Error loading media:", error);
       setHasMore(false);
     }
-    
+
     setIsLoadingInitial(false);
     setIsLoadingMore(false);
-  }, [media.length]);
+  }, []);
 
   useEffect(() => {
     fetchMedia(1);
   }, [fetchMedia]);
 
   useEffect(() => {
-    const options = {
-      root: null,
-      rootMargin: "20px",
-      threshold: 1.0
-    };
-
-    const observer = new IntersectionObserver((entities) => {
-      const target = entities[0];
+    const options = { root: null, rootMargin: "20px", threshold: 1.0 };
+    const observer = new IntersectionObserver((entries) => {
+      const target = entries[0];
       if (target && target.isIntersecting && hasMore && !isLoadingInitial && !isLoadingMore) {
         fetchMedia(page + 1);
       }
     }, options);
 
-    if (loader.current) {
-      observer.observe(loader.current);
-    }
-
+    if (loader.current) observer.observe(loader.current);
     return () => observer.disconnect();
   }, [hasMore, isLoadingInitial, isLoadingMore, page, fetchMedia]);
 
@@ -104,16 +99,8 @@ export default function GalleryPage() {
 
   const navigateViewer = (direction: "next" | "prev") => {
     if (!selectedMedia) return;
-    
     const currentIndex = media.findIndex(item => item.id === selectedMedia.id);
-    let newIndex: number;
-    
-    if (direction === "next") {
-      newIndex = currentIndex === media.length - 1 ? 0 : currentIndex + 1;
-    } else {
-      newIndex = currentIndex === 0 ? media.length - 1 : currentIndex - 1;
-    }
-    
+    const newIndex = direction === "next" ? (currentIndex === media.length - 1 ? 0 : currentIndex + 1) : (currentIndex === 0 ? media.length - 1 : currentIndex - 1);
     setSelectedMedia(media[newIndex]);
     setViewerIndex(newIndex);
   };

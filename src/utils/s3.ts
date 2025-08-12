@@ -84,7 +84,9 @@ export const listUploadedFiles = async (): Promise<AlbumItem[]> => {
   const response = await s3Client.send(command);
   const baseUrl = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/`;
 
-  const sorted = (response.Contents ?? []).sort((a, b) => {
+  const contents = (response.Contents ?? []).filter(obj => !!obj.Key && !obj.Key!.endsWith('/'));
+
+  const sorted = contents.sort((a, b) => {
     const aTime = a.LastModified?.getTime() ?? 0;
     const bTime = b.LastModified?.getTime() ?? 0;
     return bTime - aTime;
@@ -92,9 +94,9 @@ export const listUploadedFiles = async (): Promise<AlbumItem[]> => {
 
   const items: AlbumItem[] = [];
 
-  // Fetch metadata for each item concurrently
+  // Fetch metadata for each item concurrently (best-effort)
   await Promise.all(sorted.map(async (item) => {
-    const key = item.Key!;
+    const key = item.Key as string;
     const url = `${baseUrl}${key}`;
     const id = key;
     const ext = id.split('.').pop()?.toLowerCase() ?? '';
@@ -113,19 +115,22 @@ export const listUploadedFiles = async (): Promise<AlbumItem[]> => {
         // Decode URI components as they were encoded when uploaded
         itemMetadata = Object.fromEntries(
           Object.entries(headResponse.Metadata).map(([k, v]) => [
-            k, decodeURIComponent(v)
+            k, decodeURIComponent(v as string)
           ])
         );
       }
     } catch (headError) {
-      console.error(`Error fetching metadata for ${key}:`, headError);
+      // Non-fatal: continue without head metadata
+      console.warn(`Metadata fetch failed for ${key}:`, headError);
     }
+
+    const createdIso = itemMetadata.created_date || item.LastModified?.toISOString() || new Date(0).toISOString();
 
     items.push({
       id,
       url,
       type,
-      created_date: itemMetadata.created_date || item.LastModified!.toISOString(),
+      created_date: createdIso,
       title: itemMetadata.title || '',
       uploader_name: itemMetadata.uploader_name || 'אורח אנונימי',
     });

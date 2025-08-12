@@ -27,12 +27,16 @@ export async function GET(request: NextRequest) {
     const end = start + limit;
     const paginated = items.slice(start, end);
 
+    const total = items.length;
+    const hasMore = end < total;
+
     return NextResponse.json({
       items: paginated,
       page,
       limit,
-      total: items.length,
-      hasMore: end < items.length,
+      total,
+      total_items: total, // match frontend type
+      hasMore,
     });
   } catch (error) {
     console.error('Error listing uploaded files:', error);
