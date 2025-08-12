@@ -100,7 +100,7 @@ export default function VideoPreview({
           muted
           loop
           autoPlay
-          preload="auto"
+          preload={isIOS ? "metadata" : "auto"}
           poster={posterUrl}
           crossOrigin="anonymous"
           disableRemotePlayback
