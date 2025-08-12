@@ -33,8 +33,8 @@ export default function MediaGrid({ media, onMediaClick }: MediaGridProps) {
                 />
               ) : (
                 <VideoPreview
-                  src={item.media_url}
-                  thumbnailUrl={item.thumbnail_url}
+                  mp4Url={item.media_url}
+                  posterUrl={item.thumbnail_url || ""}
                   className="w-full h-auto object-cover group-hover:scale-110 transition-transform duration-700"
                   onError={() => {
                     console.warn('Video failed to load in MediaGrid');

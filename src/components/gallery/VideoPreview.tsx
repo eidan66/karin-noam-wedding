@@ -1,108 +1,113 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Video, Play } from "lucide-react";
+import { Play } from "lucide-react";
 import VideoPlaceholder from "./VideoPlaceholder";
+import { isMobile } from "@/utils";
 
 interface VideoPreviewProps {
-  src: string;
-  thumbnailUrl?: string;
+  mp4Url: string;
+  webmUrl?: string;
+  posterUrl: string;
   className?: string;
   onError?: () => void;
 }
 
 export default function VideoPreview({ 
-  src, 
-  thumbnailUrl, 
+  mp4Url, 
+  webmUrl, 
+  posterUrl, 
   className = "", 
   onError 
 }: VideoPreviewProps) {
   const [hasError, setHasError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!isMobile());
   const [showFallback, setShowFallback] = useState(false);
+  const [posterVisible, setPosterVisible] = useState(true);
+
+  const isIOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   useEffect(() => {
-    // Reset states when src changes
     setHasError(false);
-    setIsLoading(true);
+    setIsLoading(!isMobile());
     setShowFallback(false);
-  }, [src]);
+    setPosterVisible(true);
+  }, [mp4Url]);
 
   const handleVideoLoad = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const video = e.currentTarget;
     setIsLoading(false);
-    
-    // Try to show first frame
     if (video.readyState >= 2) {
-      video.currentTime = 0.1;
+      video.currentTime = 0;
     }
   };
 
   const handleVideoError = () => {
     setHasError(true);
     setIsLoading(false);
-    setShowFallback(true);
-    // Don't call onError to avoid console spam - just show fallback
+    // If we have a poster, keep showing it; otherwise show generic fallback
+    setShowFallback(!posterUrl);
+    onError?.();
   };
 
   const handleVideoCanPlay = () => {
     setIsLoading(false);
+    setPosterVisible(false);
   };
 
-  // If we have a thumbnail, show it with a play button overlay
-  if (thumbnailUrl && !hasError) {
-    return (
-      <div className={`relative ${className}`}>
+  return (
+    <div className={`relative ${className}`}>
+      {/* If video failed but we have a poster, show the poster explicitly */}
+      {hasError && posterUrl && (
         <img
-          src={thumbnailUrl}
-          alt="Video thumbnail"
-          className="w-full h-full object-cover"
+          src={posterUrl}
+          alt="Video poster"
+          className="absolute inset-0 w-full h-full object-cover"
         />
+      )}
+
+      {!showFallback && (
+        <video
+          playsInline
+          muted
+          loop
+          autoPlay
+          preload="auto"
+          poster={posterUrl}
+          onLoadedMetadata={(e) => {
+            try {
+              e.currentTarget.currentTime = 0.01;
+            } catch {}
+            setPosterVisible(false);
+          }}
+          className="w-full h-full object-cover"
+          onLoadStart={() => !isMobile() && setIsLoading(true)}
+          onLoadedData={handleVideoLoad}
+          onCanPlay={handleVideoCanPlay}
+          onError={handleVideoError}
+        >
+          {!isIOS && webmUrl && <source src={webmUrl} type="video/webm" />}
+          <source src={mp4Url} type="video/mp4" />
+        </video>
+      )}
+
+      {isLoading && !showFallback && !isMobile() && (
+        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      )}
+
+      {showFallback && (
+        <VideoPlaceholder className="w-full h-full" />
+      )}
+
+      {/* Overlay (play circle) while loading or while we explicitly show poster */}
+      {(!showFallback && (isLoading || posterVisible || (hasError && !!posterUrl))) && (
         <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
           <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-lg">
             <Play className="w-8 h-8 text-emerald-600 ml-1" />
           </div>
         </div>
-      </div>
-    );
-  }
-
-  // If no thumbnail or error, show video with fallback
-  return (
-    <div className={`relative ${className}`}>
-      {!showFallback && (
-        <video
-          src={src}
-          preload="metadata"
-          playsInline
-          autoPlay
-          muted
-          loop
-          className="w-full h-full object-cover"
-          onLoadStart={() => setIsLoading(true)}
-          onLoadedData={handleVideoLoad}
-          onCanPlay={handleVideoCanPlay}
-          onError={handleVideoError}
-        />
       )}
-      
-      {/* Loading state */}
-      {isLoading && !showFallback && (
-        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      )}
-      
-      {/* Fallback when video fails to load */}
-      {showFallback && (
-        <VideoPlaceholder className="w-full h-full" />
-      )}
-      
-      {/* Play button overlay */}
-      <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-        <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-lg">
-          <Play className="w-8 h-8 text-emerald-600 ml-1" />
-        </div>
-      </div>
     </div>
   );
 }
