@@ -74,6 +74,7 @@ export default function VideoPreview({
           src={src}
           preload="metadata"
           playsInline
+          autoPlay
           muted
           loop
           className="w-full h-full object-cover"
