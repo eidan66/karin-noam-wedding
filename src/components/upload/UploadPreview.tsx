@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 import { motion } from "framer-motion";
 import { X, Image, Video, FileText } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -51,7 +52,7 @@ export default function UploadPreview({ files, onRemove }: UploadPreviewProps) {
           try {
             const thumbnail = await generateVideoThumbnail(file);
             newThumbnails[file.name] = thumbnail;
-          } catch (error) {
+          } catch (_err) {
             // Mark as error so we don't keep trying
             newErrors[file.name] = true;
           } finally {
@@ -83,7 +84,7 @@ export default function UploadPreview({ files, onRemove }: UploadPreviewProps) {
         const previewUrl = getFilePreview(file);
         const isVideo = file.type.startsWith('video/');
         const isLoadingThumbnail = thumbnailLoading[file.name];
-        const hasThumbnailError = thumbnailErrors[file.name];
+        const _hasThumbnailError = thumbnailErrors[file.name];
 
         return (
           <motion.div

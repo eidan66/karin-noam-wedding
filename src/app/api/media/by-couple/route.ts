@@ -25,6 +25,16 @@ interface MediaItem {
   error?: string;
 }
 
+interface ProcessedMetadataJson {
+  width?: number;
+  height?: number;
+  duration?: number;
+  originalKey?: string;
+  createdAt?: string;
+  status?: 'completed' | 'failed' | 'processing';
+  error?: string;
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Check if required environment variables are set
@@ -59,7 +69,7 @@ export async function GET(request: NextRequest) {
     if (listResponse.Contents) {
       // Group files by their base ID (without extension)
       const fileGroups = new Map<string, {
-        json?: any;
+        json?: ProcessedMetadataJson;
         mp4?: string;
         webm?: string;
         jpg?: string;
@@ -88,7 +98,7 @@ export async function GET(request: NextRequest) {
             const jsonResponse = await s3Client.send(getCommand);
             const jsonText = await jsonResponse.Body?.transformToString();
             if (jsonText) {
-              group.json = JSON.parse(jsonText);
+              group.json = JSON.parse(jsonText) as ProcessedMetadataJson;
             }
           } catch (error) {
             console.error(`Error fetching JSON for ${key}:`, error);

@@ -41,7 +41,7 @@ export default function UploadZone({
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-emerald-100 to-gold-100 rounded-full flex items-center justify-center">
+        <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-emerald-100 to-gold-100 rounded-full flex items-center justify-center" aria-hidden>
           <Heart className="w-8 h-8 text-emerald-600 float-animation" />
         </div>
         <h2 className="text-2xl font-bold text-gray-800 mb-2">
@@ -74,7 +74,7 @@ export default function UploadZone({
         />
 
         <div className="text-center space-y-4">
-          <div className="flex justify-center gap-4">
+          <div className="flex justify-center gap-4" aria-hidden>
             <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center">
               <Image className="w-6 h-6 text-blue-600" />
             </div>
@@ -100,18 +100,6 @@ export default function UploadZone({
               <Upload className="w-4 h-4 ml-2" />
               בחרו קבצים
             </Button>
-
-            {/* <Button
-              variant="outline"
-              onClick={() => {
-                // Camera functionality would be implemented here
-                fileInputRef.current?.click();
-              }}
-              className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-            >
-              <Camera className="w-4 h-4 ml-2" />
-              צלמו תמונה
-            </Button> */}
           </div>
         </div>
       </motion.div>
