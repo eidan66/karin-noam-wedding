@@ -5,20 +5,6 @@ export async function GET(request: NextRequest) {
   // Handle CORS
   const origin = request.headers.get('origin');
   
-  // Create response
-  const response = NextResponse.next();
-  
-  // Set CORS headers
-  if (origin) {
-    response.headers.set('Access-Control-Allow-Origin', origin);
-  } else {
-    response.headers.set('Access-Control-Allow-Origin', '*');
-  }
-  
-  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-  response.headers.set('Access-Control-Allow-Credentials', 'true');
-
   try {
     // Check if required environment variables are set
     if (!process.env.AWS_REGION || !process.env.AWS_ACCESS_KEY_ID || 
@@ -29,7 +15,15 @@ export async function GET(request: NextRequest) {
           code: 'MISSING_ENV_VARS',
           message: 'AWS configuration is incomplete. Please check environment variables.',
         },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: {
+            'Access-Control-Allow-Origin': origin || '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+            'Access-Control-Allow-Credentials': 'true',
+          }
+        }
       );
     }
 
@@ -54,6 +48,13 @@ export async function GET(request: NextRequest) {
       total,
       total_items: total, // match frontend type
       hasMore,
+    }, {
+      headers: {
+        'Access-Control-Allow-Origin': origin || '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+        'Access-Control-Allow-Credentials': 'true',
+      }
     });
   } catch (error) {
     console.error('Error listing uploaded files:', error);
@@ -81,7 +82,15 @@ export async function GET(request: NextRequest) {
         message: errorMessage,
         details: process.env.NODE_ENV === 'development' ? error instanceof Error ? error.message : String(error) : undefined,
       },
-      { status: statusCode }
+      { 
+        status: statusCode,
+        headers: {
+          'Access-Control-Allow-Origin': origin || '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+          'Access-Control-Allow-Credentials': 'true',
+        }
+      }
     );
   }
 }
@@ -90,19 +99,15 @@ export async function GET(request: NextRequest) {
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get('origin');
   
-  const response = new NextResponse(null, { status: 200 });
-  
-  if (origin) {
-    response.headers.set('Access-Control-Allow-Origin', origin);
-  } else {
-    response.headers.set('Access-Control-Allow-Origin', '*');
-  }
-  
-  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-  response.headers.set('Access-Control-Allow-Credentials', 'true');
-  
-  return response;
+  return new NextResponse(null, { 
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': origin || '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+      'Access-Control-Allow-Credentials': 'true',
+    }
+  });
 }
 
 
