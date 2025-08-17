@@ -11,6 +11,7 @@ import { motion } from "framer-motion";
 import UploadZone from "../../components/upload/UploadZone";
 import UploadPreview from "../../components/upload/UploadPreview";
 import SuccessAnimation from "../../components/upload/SuccessAnimation";
+import UploadProgressIndicator from "../../components/upload/UploadProgressIndicator";
 import { useBulkUploader } from "../../hooks/useBulkUploader";
 import { useToast } from "@/components/ui/toast";
 
@@ -20,9 +21,9 @@ export default function UploadPage() {
   const [uploaderName, setUploaderName] = useState("");
   const [caption, setCaption] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
+  const [hasShownSuccessToast, setHasShownSuccessToast] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const firstItemRef = useRef<HTMLDivElement>(null);
-  const [showLongRunning, setShowLongRunning] = useState(false);
 
   const { uploads, uploadFiles, isUploading } = useBulkUploader();
   const { show: showToast } = useToast();
@@ -40,17 +41,7 @@ export default function UploadPage() {
     }
   }, [selectedFiles.length]);
 
-  // Show a friendly notice if uploading takes longer than ~30s
-  useEffect(() => {
-    let t: NodeJS.Timeout | null = null;
-    if (isUploading) {
-      t = setTimeout(() => { setShowLongRunning(true); showToast('לא נתקענו! מעלים לכם את התמונות... 🍾'); }, 30000);
-    } else {
-      setShowLongRunning(false);
-      if (t) clearTimeout(t);
-    }
-    return () => { if (t) clearTimeout(t); };
-  }, [isUploading, showToast]);
+
 
   const removeFile = (index: number) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
@@ -62,10 +53,14 @@ export default function UploadPage() {
   };
 
   useEffect(() => {
-    const allUploadsSuccessful = uploads.length > 0 && uploads.every(upload => upload.status === 'success');
+    // Only run this effect if we have uploads and we're not already showing success
+    if (uploads.length === 0 || hasShownSuccessToast) return;
+
+    const allUploadsSuccessful = uploads.every(upload => upload.status === 'success');
     const anyUploadFailed = uploads.some(upload => upload.status === 'error');
 
     if (allUploadsSuccessful) {
+      setHasShownSuccessToast(true);
       showToast('העלאה הושלמה! 🎉', 'success');
       setShowSuccess(true);
       setTimeout(() => {
@@ -73,14 +68,15 @@ export default function UploadPage() {
         setUploaderName("");
         setCaption("");
         setShowSuccess(false);
+        setHasShownSuccessToast(false);
         navigate.push(createPageUrl("Gallery"));
       }, 4500);
-    }
-    if (anyUploadFailed) {
+    } else if (anyUploadFailed) {
+      setHasShownSuccessToast(true);
       showToast('חלק מהקבצים לא הועלו. נסו שוב 🙏', 'error');
       console.error("One or more uploads failed.", uploads.filter(upload => upload.status === 'error'));
     }
-  }, [uploads, navigate, showToast]);
+  }, [uploads, navigate, showToast, hasShownSuccessToast]);
 
   return (
     <div className="min-h-screen wedding-gradient">
@@ -100,6 +96,17 @@ export default function UploadPage() {
                   קבצים שנבחרו ({selectedFiles.length})
                 </h3>
                 <UploadPreview files={selectedFiles} onRemove={removeFile} />
+              </motion.div>
+            )}
+
+            {/* Upload Progress Indicator */}
+            {isUploading && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass-effect rounded-3xl p-6 border border-gold-200"
+              >
+                <UploadProgressIndicator uploads={uploads} isUploading={isUploading} />
               </motion.div>
             )}
 
@@ -129,11 +136,7 @@ export default function UploadPage() {
                   )}
                 </Button>
 
-                {isUploading && showLongRunning && (
-                  <div className="text-center text-sm text-gray-600">
-                    לא נתקענו! מעלים לכם את התמונות... 🍾
-                  </div>
-                )}
+
               </motion.div>
             )}
           </motion.div>

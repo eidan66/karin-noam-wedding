@@ -10,6 +10,7 @@ interface VideoPreviewProps {
   posterUrl: string;
   className?: string;
   onError?: () => void;
+  onLoad?: () => void;
   fixedAspect?: boolean; // if true, wrap with aspect-video
 }
 
@@ -19,6 +20,7 @@ export default function VideoPreview({
   posterUrl, 
   className = "", 
   onError,
+  onLoad,
   fixedAspect = true,
 }: VideoPreviewProps) {
   const [hasError, setHasError] = useState(false);
@@ -77,6 +79,7 @@ export default function VideoPreview({
       try { v.currentTime = 0.001; } catch {}
     }
     setPosterVisible(false);
+    onLoad?.();
   };
 
   const containerClass = fixedAspect ? `relative aspect-video ${className}` : `relative ${className}`;

@@ -44,8 +44,38 @@ export default function MediaViewer({
       }
     };
 
+    // Prevent scrolling when overlay is open
+    const preventScroll = (e: Event) => {
+      e.preventDefault();
+    };
+
+    if (isOpen) {
+      // Disable scrolling on body
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      
+      // Add touch event listeners for mobile
+      document.addEventListener('touchmove', preventScroll, { passive: false });
+    } else {
+      // Re-enable scrolling
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      
+      // Remove touch event listeners
+      document.removeEventListener('touchmove', preventScroll);
+    }
+
     window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
+    return () => {
+      window.removeEventListener('keydown', handleKeyPress);
+      // Cleanup scroll prevention
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.removeEventListener('touchmove', preventScroll);
+    };
   }, [isOpen, onClose, onNavigate]);
 
   if (!media) return null;

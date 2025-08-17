@@ -89,6 +89,8 @@ export default function GalleryPage() {
     });
   }, [fetchMedia]);
 
+
+
   useEffect(() => {
     const options = { root: null, rootMargin: "20px", threshold: 1.0 };
     const observer = new IntersectionObserver((entries) => {
@@ -127,7 +129,9 @@ export default function GalleryPage() {
   return (
     <div className="min-h-screen wedding-gradient">
       <div className="max-w-7xl mx-auto px-4 py-8 pb-24 md:pb-8">
-        <GalleryHeader mediaCount={totalCount ?? media.length} />
+        <GalleryHeader 
+          mediaCount={totalCount ?? media.length} 
+        />
 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <FilterTabs 
@@ -146,6 +150,8 @@ export default function GalleryPage() {
             </Button>
           </Link>
         </div>
+
+
 
         <AnimatePresence mode="wait">
           {isLoadingInitial ? (

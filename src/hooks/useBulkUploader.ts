@@ -131,9 +131,18 @@ export const useBulkUploader = () => {
   const [uploads, setUploads] = useState<FileUploadState[]>([]);
   const uploadControllers = useRef<AbortController[]>([]);
 
+
+
   const uploadFiles = async (files: File[], uploaderName: string, caption: string) => {
+    // Reset upload controllers
     uploadControllers.current = [];
-    setUploads(files.map(file => ({ file, status: 'pending' as UploadStatus, progress: 0 })));
+    
+    // Clear any existing uploads
+    setUploads([]);
+    
+    // Create initial upload states
+    const initialUploads = files.map(file => ({ file, status: 'pending' as UploadStatus, progress: 0 }));
+    setUploads(initialUploads);
 
     const concurrency = resolveConcurrency();
 
@@ -151,11 +160,12 @@ export const useBulkUploader = () => {
       const controller = new AbortController();
       uploadControllers.current[idx] = controller;
 
-      setUploads(prev =>
-        prev.map((u, i) =>
+      setUploads(prev => {
+        const newUploads = prev.map((u, i) =>
           i === idx ? { ...u, status: 'uploading' as UploadStatus, progress: 0 } : u
-        )
-      );
+        );
+        return newUploads;
+      });
 
       try {
         // Compress images on client to accelerate uploads massively
@@ -204,7 +214,7 @@ export const useBulkUploader = () => {
           prev.map((u, i) =>
             i === idx ? { ...u, status: 'success' as UploadStatus, progress: 100, mediaItem: createdMedia } : u
           )
-        );
+          );
       } catch (err) {
         setUploads(prev =>
           prev.map((u, i) =>
@@ -212,7 +222,7 @@ export const useBulkUploader = () => {
               ? { ...u, status: 'error' as UploadStatus, error: (err as Error).message || 'An error occurred' }
               : u
           )
-        );
+          );
       }
     });
   };
@@ -220,6 +230,8 @@ export const useBulkUploader = () => {
   const cancelUploads = () => {
     uploadControllers.current.forEach(controller => controller?.abort());
   };
+
+
 
   const isUploading = uploads.some(u => u.status === 'uploading' || u.status === 'pending');
 
