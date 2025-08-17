@@ -40,5 +40,6 @@ export const config = {
      * - All other routes
      */
     '/((?!_next/static|_next/image|favicon.ico).*)',
+    '/api/:path*',
   ],
 };

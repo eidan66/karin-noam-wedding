@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listUploadedFiles } from '@/utils/s3';
+import { setCorsHeaders } from '@/utils/cors';
 
 export async function GET(request: NextRequest) {
+  // Handle CORS
+  const origin = request.headers.get('origin');
+  
+  // Create response
+  const response = NextResponse.next();
+  
+  // Set CORS headers
+  setCorsHeaders(response, origin);
+
   try {
     // Check if required environment variables are set
     if (!process.env.AWS_REGION || !process.env.AWS_ACCESS_KEY_ID || 
@@ -67,4 +77,12 @@ export async function GET(request: NextRequest) {
       { status: statusCode }
     );
   }
+}
+
+// Handle OPTIONS request for CORS preflight
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  const response = new NextResponse(null, { status: 200 });
+  setCorsHeaders(response, origin);
+  return response;
 }
