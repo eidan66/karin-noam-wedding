@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listUploadedFiles } from '@/utils/s3';
-import { setCorsHeaders } from '@/utils/cors';
 
 export async function GET(request: NextRequest) {
   // Handle CORS
@@ -10,7 +9,15 @@ export async function GET(request: NextRequest) {
   const response = NextResponse.next();
   
   // Set CORS headers
-  setCorsHeaders(response, origin);
+  if (origin) {
+    response.headers.set('Access-Control-Allow-Origin', origin);
+  } else {
+    response.headers.set('Access-Control-Allow-Origin', '*');
+  }
+  
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  response.headers.set('Access-Control-Allow-Credentials', 'true');
 
   try {
     // Check if required environment variables are set
@@ -82,7 +89,20 @@ export async function GET(request: NextRequest) {
 // Handle OPTIONS request for CORS preflight
 export async function OPTIONS(request: NextRequest) {
   const origin = request.headers.get('origin');
+  
   const response = new NextResponse(null, { status: 200 });
-  setCorsHeaders(response, origin);
+  
+  if (origin) {
+    response.headers.set('Access-Control-Allow-Origin', origin);
+  } else {
+    response.headers.set('Access-Control-Allow-Origin', '*');
+  }
+  
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  response.headers.set('Access-Control-Allow-Credentials', 'true');
+  
   return response;
 }
+
+
