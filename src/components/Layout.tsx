@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import { Footer } from "./Footer";
 import { ShareFAB } from "./ui/ShareFAB";
 import { WeddingDateConfetti } from "./Confetti";
+import ThemeToggle from "./ui/ThemeToggle";
 
 interface LayoutProps {
   children?: React.ReactNode; // Make children optional
@@ -74,6 +75,11 @@ export default function Layout({ children }: LayoutProps) {
                 <Upload className="w-4 h-4" />
                 <span className="text-sm md:font-medium">שיתוף זיכרון</span>
               </Link>
+              
+              {/* Theme Toggle */}
+              <div className="flex items-center">
+                <ThemeToggle />
+              </div>
             </nav>
           </div>
         </div>

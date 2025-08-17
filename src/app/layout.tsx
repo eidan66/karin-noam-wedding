@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import Layout from "@/components/Layout";
 import { ToastProvider } from "@/components/ui/toast";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,11 +29,13 @@ export default function RootLayout({ children, }: Readonly<{ children: React.Rea
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ToastProvider>
-          <Layout>
-            {children}
-          </Layout>
-        </ToastProvider>
+        <ThemeProvider>
+          <ToastProvider>
+            <Layout>
+              {children}
+            </Layout>
+          </ToastProvider>
+        </ThemeProvider>
         <Analytics />
       </body>
     </html>

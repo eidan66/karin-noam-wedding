@@ -49,8 +49,8 @@ export default function FilterTabs({ activeFilter, onFilterChange, media, totalA
           onClick={() => onFilterChange(filter.id)}
           className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-all duration-300 ${
             activeFilter === filter.id
-              ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg'
-              : 'bg-white/70 text-gray-700 hover:bg-gold-100 border border-gold-200'
+              ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg border border-white/40 dark:bg-transparent dark:text-emerald-300 dark:border dark:border-emerald-500 dark:shadow-none'
+            : 'bg-white/70 text-emerald-700 hover:bg-gold-100 border border-gold-200 dark:bg-transparent dark:text-slate-300 dark:border-slate-600 dark:hover:bg-transparent'
           } ${
             filter.id === 'all' 
               ? 'w-full sm:w-auto' 
@@ -61,8 +61,8 @@ export default function FilterTabs({ activeFilter, onFilterChange, media, totalA
           <span>{filter.label}</span>
           <span className={`text-xs px-2 py-1 rounded-full ${
             activeFilter === filter.id
-              ? 'bg-white/20 text-white'
-              : 'bg-gold-200 text-gold-700'
+              ? 'bg-white/20 text-white dark:bg-transparent dark:text-emerald-300 dark:border dark:border-white-600'
+              : 'bg-white/20 text-gold-700 dark:bg-transparent dark:text-slate-300 dark:border dark:border-slate-600'
           }`}>
             {filter.count}
           </span>

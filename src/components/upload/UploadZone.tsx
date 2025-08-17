@@ -41,7 +41,7 @@ export default function UploadZone({
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-emerald-100 to-gold-100 rounded-full flex items-center justify-center" aria-hidden>
+        <div className="w-16 h-16 mx-auto mb-1 rounded-full flex items-center justify-center" aria-hidden>
           <Heart className="w-8 h-8 text-emerald-600 float-animation" />
         </div>
         <h2 className="text-2xl font-bold text-gray-800 mb-2">
