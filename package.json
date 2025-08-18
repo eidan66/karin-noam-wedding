@@ -16,6 +16,7 @@
     "@aws-sdk/s3-request-presigner": "^3.864.0",
     "@radix-ui/react-slot": "^1.2.3",
     "@vercel/analytics": "^1.5.0",
+    "archiver": "^7.0.1",
     "aws-lambda": "^1.0.7",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -31,6 +32,7 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
+    "@types/archiver": "^6.0.3",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/cors": "^2.8.19",

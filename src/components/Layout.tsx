@@ -94,7 +94,7 @@ export default function Layout({ children }: LayoutProps) {
       <Footer />
 
       {/* Share FAB for mobile */}
-      {pathname !== createPageUrl("Upload") && <ShareFAB />}
+      {pathname !== createPageUrl("Upload") && pathname !== createPageUrl("Download") && <ShareFAB />}
     </div>
   );
 }

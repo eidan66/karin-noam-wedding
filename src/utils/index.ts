@@ -2,6 +2,7 @@ export const createPageUrl = (pageName: string): string => {
   const routes: Record<string, string> = {
     'Gallery': '/gallery',
     'Upload': '/upload',
+    'Download':'/download',
     'Home': '/'
   };
   
