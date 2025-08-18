@@ -16,7 +16,6 @@ interface UploadPreviewProps {
 export default function UploadPreview({ files, onRemove, isUploading }: UploadPreviewProps) {
   const [videoThumbnails, setVideoThumbnails] = useState<Record<string, string>>({});
   const [thumbnailLoading, setThumbnailLoading] = useState<Record<string, boolean>>({});
-  const [thumbnailErrors, setThumbnailErrors] = useState<Record<string, boolean>>({});
 
   const getFileIcon = (file: File): LucideIcon => {
     if (file.type.startsWith('image/')) return Image;
@@ -45,7 +44,6 @@ export default function UploadPreview({ files, onRemove, isUploading }: UploadPr
 
       const newThumbnails: Record<string, string> = {};
       const newLoading: Record<string, boolean> = {};
-      const newErrors: Record<string, boolean> = {};
       
       for (const file of files) {
         if (file.type.startsWith('video/')) {
@@ -53,9 +51,9 @@ export default function UploadPreview({ files, onRemove, isUploading }: UploadPr
           try {
             const thumbnail = await generateVideoThumbnail(file);
             newThumbnails[file.name] = thumbnail;
-          } catch (_err) {
+          } catch {
             // Mark as error so we don't keep trying
-            newErrors[file.name] = true;
+            // newErrors[file.name] = true; // This line was removed
           } finally {
             newLoading[file.name] = false;
           }
@@ -63,7 +61,6 @@ export default function UploadPreview({ files, onRemove, isUploading }: UploadPr
       }
       
       setThumbnailLoading(prev => ({ ...prev, ...newLoading }));
-      setThumbnailErrors(prev => ({ ...prev, ...newErrors }));
       setVideoThumbnails(prev => ({ ...prev, ...newThumbnails }));
     };
 
@@ -85,7 +82,6 @@ export default function UploadPreview({ files, onRemove, isUploading }: UploadPr
         const previewUrl = getFilePreview(file);
         const isVideo = file.type.startsWith('video/');
         const isLoadingThumbnail = thumbnailLoading[file.name];
-        const _hasThumbnailError = thumbnailErrors[file.name];
 
         return (
           <motion.div

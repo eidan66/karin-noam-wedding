@@ -18,30 +18,28 @@ const UPLOAD_MESSAGES = [
   "התמונות בדרך לחופה 🎞️💍",
   "המחשב מצלם סלפי עם הקבצים 🤳",
   "אנחנו עושים להם פן לפני הגלריה 💁‍♀️",
-  "עוד שנייה וכולם אומרים צ׳יז 🧀",
   "מגהצים את השמלה של הפיקסלים 👗✨",
   "הקבצים עושים ריקוד סלואו לרשת 💃🕺",
-  "מחפשים מקום טוב ליד הבופה… לעלות 🍽️",
   "השרת מסדר שולחנות לתמונות 🪑",
-  "קצת ברכות, קצת ביטים - מתקרבים 📨",
-  "הצלם צועק: להעלות! להעלות! 📣",
   "הפלאש מוכן, הקבצים מתאבזרים ⚡",
-  "שמים בייביסיטר לבייטים 👶💾",
   "האלבום מתרחב כמו מעגל הריקוד 🌀",
   "מתקתקים כמו דיג׳יי בשיא הערב 🎧",
   "הקובץ מתבייש… נותנים לו דקה 😉",
-  "טקס קצר, קבלה ארוכה - בדיוק כמו בחתונה 🕯️",
   "הזוג בדרך לרחבה, הקבצים בדרך לגלריה 💑",
-  "מנפחים בלונים לפיד התמונות 🎈",
   "השרת לוגם אספרסו ומאיץ העלאה ☕🚀",
   "בין חמסה לעין - שומרים על הקבצים 🧿",
-  "מריצים חופה וקידושין על הווידאו ✡️🎥",
   "שמים נצנצים על הפריימים ✨",
   "הDJ מרים, גם השרת מרים בייטים 🔊",
-  "שוברים כוס - אבל לא את הרשת 🥂",
   "מפזרים עלי כותרת על הגלריה 🌹",
   "עוד סיבוב רחבה ואנחנו באוויר 🔁",
   "הקבצים בשלב הטעימות - כמעט מוגשים 🍰",
+  "הקבצים עושים סלפי לפני שהם נכנסים לגלריה 🤳",
+  "בדרך לסטורי  -  מחכים לאישור השרת 📲",
+  "עוד רגע, הקבצים זורקים קונפטי 🎉",
+  "השרת מרגיש כמו ברמן  -  מוזג העלאות בלי סוף 🍻",
+  "הקבצים שולחים הודעה: 'אח שלי, תיכף מגיעים' 💬",
+  "בדיוק כמו אחרי הצ׳ייסר השלישי  -  זה עולה קצת לאט אבל מגיע 🐢",
+  "הקבצים באוטובוס לחתונה  -  תיכף נכנסים 🚍",
   "כמו דודה ברחבה - זה לוקח שנייה אבל שווה 💃"
 ];
 
@@ -179,46 +177,6 @@ export default function UploadProgressIndicator({ uploads, isUploading }: Upload
             אל דאגה, אנחנו לא נתקענו! המערכת עובדת על זה... 🚀
           </p>
         </motion.div>
-      )}
-
-      {/* Individual File Progress */}
-      {totalFiles > 0 && (
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">סטטוס קבצים בודדים:</h4>
-          <div className="max-h-32 overflow-y-auto space-y-2">
-            {uploads.map((upload, index) => (
-              <div key={index} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <div className="flex-shrink-0">
-                  {upload.status === 'success' && <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
-                  {upload.status === 'uploading' && <Loader2 className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-spin" />}
-                  {upload.status === 'error' && <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />}
-                  {upload.status === 'pending' && <div className="w-4 h-4 bg-gray-400 dark:bg-gray-500 rounded-full" />}
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm text-gray-700 dark:text-gray-200 truncate">
-                    קובץ {index + 1}
-                  </div>
-                  {upload.status === 'uploading' && (
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-1">
-                      <div 
-                        className="h-full bg-blue-500 dark:bg-blue-400 rounded-full transition-all duration-300"
-                        style={{ width: `${upload.progress}%` }}
-                      />
-                    </div>
-                  )}
-                </div>
-                
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  {upload.status === 'success' && 'הועלה'}
-                  {upload.status === 'uploading' && `${upload.progress}%`}
-                  {upload.status === 'error' && 'נכשל'}
-                  {upload.status === 'pending' && 'ממתין'}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       )}
     </div>
   );

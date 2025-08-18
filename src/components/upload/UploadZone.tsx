@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Upload, Image, Video, Heart } from "lucide-react";
+import { Upload, Image as ImageIcon, Video, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { RefObject, DragEvent, ChangeEvent } from 'react';
 
@@ -41,7 +41,7 @@ export default function UploadZone({
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <div className="w-16 h-16 mx-auto mb-1 rounded-full flex items-center justify-center" aria-hidden>
+        <div className="w-16 h-16 mx-auto mb-1 rounded-full flex items-center justify-center" aria-hidden="true">
           <Heart className="w-8 h-8 text-emerald-600 float-animation" />
         </div>
         <h2 className="text-2xl font-bold text-gray-800 mb-2">
@@ -74,9 +74,9 @@ export default function UploadZone({
         />
 
         <div className="text-center space-y-4">
-          <div className="flex justify-center gap-4" aria-hidden>
+          <div className="flex justify-center gap-4" aria-hidden="true">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl flex items-center justify-center">
-              <Image className="w-6 h-6 text-blue-600" />
+              <ImageIcon className="w-6 h-6 text-blue-600" />
             </div>
             <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl flex items-center justify-center">
               <Video className="w-6 h-6 text-purple-600" />

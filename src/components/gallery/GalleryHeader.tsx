@@ -10,7 +10,6 @@ interface GalleryHeaderProps {
 
 export default function GalleryHeader({ mediaCount }: GalleryHeaderProps) {
   const [showDownloadButton, setShowDownloadButton] = useState(false);
-  const [timeUntilDownload, setTimeUntilDownload] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -23,12 +22,6 @@ export default function GalleryHeader({ mediaCount }: GalleryHeaderProps) {
       
       if (now >= downloadDate) {
         setShowDownloadButton(true);
-        setTimeUntilDownload("");
-      } else {
-        const timeLeft = downloadDate.getTime() - now.getTime();
-        const hours = Math.floor(timeLeft / (1000 * 60 * 60));
-        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-        setTimeUntilDownload(`${hours}:${minutes.toString().padStart(2, '0')}`);
       }
     };
 

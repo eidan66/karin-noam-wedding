@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight, User, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,8 @@ export default function MediaViewer({
   currentIndex, 
   totalCount 
 }: MediaViewerProps) {
+  const [scrollPosition, setScrollPosition] = useState(0);
+
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (!isOpen) return;
@@ -44,27 +46,21 @@ export default function MediaViewer({
       }
     };
 
-    // Prevent scrolling when overlay is open
-    const preventScroll = (e: Event) => {
-      e.preventDefault();
-    };
-
     if (isOpen) {
-      // Disable scrolling on body
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
+      // Save current scroll position
+      const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+      setScrollPosition(currentScroll);
       
-      // Add touch event listeners for mobile
-      document.addEventListener('touchmove', preventScroll, { passive: false });
+      // Disable scrolling
+      document.body.style.overflow = 'hidden';
     } else {
       // Re-enable scrolling
       document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
       
-      // Remove touch event listeners
-      document.removeEventListener('touchmove', preventScroll);
+      // Restore scroll position after a short delay to ensure DOM is ready
+      setTimeout(() => {
+        window.scrollTo(0, scrollPosition);
+      }, 100);
     }
 
     window.addEventListener('keydown', handleKeyPress);
@@ -72,11 +68,8 @@ export default function MediaViewer({
       window.removeEventListener('keydown', handleKeyPress);
       // Cleanup scroll prevention
       document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
-      document.removeEventListener('touchmove', preventScroll);
     };
-  }, [isOpen, onClose, onNavigate]);
+  }, [isOpen, onClose, onNavigate, scrollPosition]);
 
   if (!media) return null;
 

@@ -95,7 +95,7 @@ async function presignBatch(files: File[], caption: string, uploaderName: string
 }
 
 async function uploadPutWithRetry(url: string, file: File, idx: number, setUploads: React.Dispatch<React.SetStateAction<FileUploadState[]>>): Promise<void> {
-  const attempt = (tryNum: number) => new Promise<void>((resolve, reject) => {
+  const attempt = () => new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('PUT', url, true);
     xhr.setRequestHeader('Content-Type', file.type);
@@ -117,7 +117,7 @@ async function uploadPutWithRetry(url: string, file: File, idx: number, setUploa
   let lastErr: unknown;
   for (let t = 0; t < 3; t++) {
     try {
-      await attempt(t);
+      await attempt();
       return;
     } catch (err) {
       lastErr = err;

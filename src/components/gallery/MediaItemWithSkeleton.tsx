@@ -1,6 +1,7 @@
 "use client";
-import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { User } from 'lucide-react';
 import type { WeddingMediaItem } from '@/Entities/WeddingMedia';
 import VideoPreview from './VideoPreview';
@@ -13,7 +14,6 @@ interface MediaItemWithSkeletonProps {
 
 export default function MediaItemWithSkeleton({ item, index, onMediaClick }: MediaItemWithSkeletonProps) {
   const [showSkeleton, setShowSkeleton] = useState(true);
-  const imageRef = useRef<HTMLImageElement>(null);
 
   // Simple approach: show skeleton for a short time, then show media
   useEffect(() => {
@@ -60,10 +60,11 @@ export default function MediaItemWithSkeleton({ item, index, onMediaClick }: Med
                 transition={{ duration: 0.3 }}
               >
                 {item.media_type === 'photo' ? (
-                  <img
-                    ref={imageRef}
+                  <Image
                     src={item.media_url}
                     alt={item.title || "Wedding memory"}
+                    width={500}
+                    height={500}
                     className="w-full h-auto object-cover group-hover:scale-110 transition-transform duration-700"
                     loading="eager"
                     decoding="async"
