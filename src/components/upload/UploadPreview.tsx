@@ -10,9 +10,10 @@ import { generateVideoThumbnail, isMobile } from "@/utils";
 interface UploadPreviewProps {
   files: File[];
   onRemove: (index: number) => void;
+  isUploading?: boolean;
 }
 
-export default function UploadPreview({ files, onRemove }: UploadPreviewProps) {
+export default function UploadPreview({ files, onRemove, isUploading }: UploadPreviewProps) {
   const [videoThumbnails, setVideoThumbnails] = useState<Record<string, string>>({});
   const [thumbnailLoading, setThumbnailLoading] = useState<Record<string, boolean>>({});
   const [thumbnailErrors, setThumbnailErrors] = useState<Record<string, boolean>>({});
@@ -163,8 +164,13 @@ export default function UploadPreview({ files, onRemove }: UploadPreviewProps) {
                   variant="ghost"
                   size="icon"
                   onClick={() => onRemove(index)}
-                  className="absolute top-2 right-2 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg border border-red-400 transition-all duration-200 z-10"
-                  title="הסר קובץ"
+                  disabled={isUploading}
+                  className={`absolute top-2 right-2 w-8 h-8 rounded-full shadow-lg border transition-all duration-200 z-10 ${
+                    isUploading 
+                      ? 'bg-gray-400 cursor-not-allowed border-gray-300' 
+                      : 'bg-red-500 hover:bg-red-600 text-white border-red-400'
+                  }`}
+                  title={isUploading ? "לא ניתן למחוק בזמן העלאה" : "הסר קובץ"}
                 >
                   <X className="w-4 h-4" />
                 </Button>

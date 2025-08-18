@@ -95,7 +95,7 @@ export default function UploadPage() {
                   <Heart className="w-5 h-5 text-emerald-600" />
                   קבצים שנבחרו ({selectedFiles.length})
                 </h3>
-                <UploadPreview files={selectedFiles} onRemove={removeFile} />
+                <UploadPreview files={selectedFiles} onRemove={removeFile} isUploading={isUploading} />
               </motion.div>
             )}
 
@@ -117,11 +117,23 @@ export default function UploadPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">השם שלכם (אופציונלי)</label>
-                    <Input value={uploaderName} onChange={(e) => setUploaderName(e.target.value)} placeholder="בואו נדע מי משתף את הזיכרון הזה" className="border-gold-200 focus:border-emerald-400 focus:ring-emerald-200" />
+                    <Input 
+                      value={uploaderName} 
+                      onChange={(e) => setUploaderName(e.target.value)} 
+                      placeholder="בואו נדע מי משתף את הזיכרון הזה" 
+                      className="border-gold-200 focus:border-emerald-400 focus:ring-emerald-200" 
+                      disabled={isUploading}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">תיאור (אופציונלי)</label>
-                    <Textarea value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="שתפו מה הופך את הרגע הזה למיוחד..." className="border-gold-200 focus:border-emerald-400 focus:ring-emerald-200 h-24" />
+                    <Textarea 
+                      value={caption} 
+                      onChange={(e) => setCaption(e.target.value)} 
+                      placeholder="שתפו מה הופך את הרגע הזה למיוחד..." 
+                      className="border-gold-200 focus:border-emerald-400 focus:ring-emerald-200 h-24" 
+                      disabled={isUploading}
+                    />
                   </div>
                 </div>
 
