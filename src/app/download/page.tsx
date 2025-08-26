@@ -209,7 +209,6 @@ export default function DownloadPage() {
                     onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
                     placeholder="הזינו קוד גישה"
                     className="w-full px-4 py-3 text-center text-lg font-mono border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-                    maxLength={7}
                   />
                 </div>
                 <button
