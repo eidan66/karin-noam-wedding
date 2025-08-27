@@ -36,9 +36,9 @@ export async function POST() {
     // Check if we have valid cached media items
     const now = Date.now();
     if (cachedMediaItems && (now - cacheTimestamp) < CACHE_DURATION) {
-      console.log('🚀 Using cached media items - much faster!');
+      console.log('🚀 Using cached media items');
     } else {
-      console.log('🔄 Fetching media items from S3 (cache miss)');
+      console.log('🔄 Fetching media items from S3');
       
       // Get all media files - we'll need to fetch all pages
       const allMediaItems: MediaItem[] = [];
@@ -72,11 +72,33 @@ export async function POST() {
       // Cache the media items
       cachedMediaItems = allMediaItems;
       cacheTimestamp = now;
-      console.log(`✅ Cached ${allMediaItems.length} media items`);
+      console.log(`✅ Found ${allMediaItems.length} media items`);
     }
     
     // Use cached or fresh media items
     const allMediaItems = cachedMediaItems!;
+
+    // Validate media items before processing
+    const validMediaItems = allMediaItems.filter(media => {
+      if (!media.url && !media.media_url) {
+        console.warn(`⚠️ Skipping media item ${media.id}: No URL found`);
+        return false;
+      }
+      if (!media.type || (media.type !== 'image' && media.type !== 'video')) {
+        console.warn(`⚠️ Skipping media item ${media.id}: Invalid type: ${media.type}`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validMediaItems.length === 0) {
+      return NextResponse.json(
+        { error: 'No valid media files found for download' },
+        { status: 404 }
+      );
+    }
+
+    console.log(`📁 Processing ${validMediaItems.length} valid files`);
 
     // Create ZIP archive
     const archive = archiver('zip', {
@@ -86,21 +108,17 @@ export async function POST() {
     // Create a readable stream from the archive
     const stream = archive as unknown as ReadableStream;
     
-    // Set response headers for streaming download with better filename
-    const response = new Response(stream, {
-      headers: {
-        'Content-Type': 'application/zip',
-        'Content-Disposition': `attachment; filename="Wedding-Album-Karin-Noam-18-08-2025.zip"`,
-        'Cache-Control': 'no-cache',
-      },
-    });
+    // Note: We'll create the final response after processing all files
 
     // Add files to archive with simplified structure
-    for (let i = 0; i < allMediaItems.length; i++) {
-      const media = allMediaItems[i];
+    let successfullyAddedFiles = 0;
+    let failedFiles = 0;
+    const failedFileDetails: string[] = [];
+    const addedFilesList: string[] = []; // Track all added files
+    
+    for (let i = 0; i < validMediaItems.length; i++) {
+      const media = validMediaItems[i];
       try {
-        console.log(`Adding to ZIP (${i + 1}/${allMediaItems.length}): ${media.title || media.id}`);
-        
         // Get the file content from S3 or wherever it's stored
         const fileResponse = await fetch(media.url || media.media_url || '');
         
@@ -122,31 +140,49 @@ export async function POST() {
           if (mediaType === 'תמונות') {
             const validImageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'avif', 'svg'];
             if (!validImageExtensions.includes(fileExtension.toLowerCase())) {
-              console.warn(`Unknown image extension for ${media.id}: ${fileExtension}, using 'jpg' as fallback`);
               fileExtension = 'jpg';
             }
           } else if (mediaType === 'סרטונים') {
             const validVideoExtensions = ['mp4', 'mov', 'avi', 'mkv', 'wmv', 'flv', 'webm', 'm4v', '3gp', 'ogv'];
             if (!validVideoExtensions.includes(fileExtension.toLowerCase())) {
-              console.warn(`Unknown video extension for ${media.id}: ${fileExtension}, using 'mp4' as fallback`);
               fileExtension = 'mp4';
             }
           }
           
-          // Create a clean filename
-          const cleanTitle = media.title ? media.title.replace(/[^a-zA-Z0-9\u0590-\u05FF\s\-_]/g, '') : media.id;
-          const filename = `${mediaType}/${cleanTitle}.${fileExtension}`;
+          // Remove the wedding-uploads/ prefix from the ID if it exists
+          let cleanId = media.id;
+          if (cleanId.startsWith('wedding-uploads/')) {
+            cleanId = cleanId.replace('wedding-uploads/', '');
+          }
+          
+          // Create a clean filename without the folder prefix
+          const filename = `${mediaType}/${cleanId}`;
           
           // Add file to archive
           archive.append(Buffer.from(buffer), { name: filename });
           
-          console.log(`✅ Added: ${filename} (${mediaType}, ${fileExtension})`);
+          successfullyAddedFiles++;
+          addedFilesList.push(filename);
         } else {
-          console.warn(`⚠️ Failed to fetch file ${media.id}: ${fileResponse.status}`);
+          failedFiles++;
+          const errorMsg = `Failed to fetch file ${media.id}: ${fileResponse.status} ${fileResponse.statusText}`;
+          failedFileDetails.push(errorMsg);
+          console.warn(`⚠️ ${errorMsg}`);
         }
       } catch (error) {
-        console.error(`❌ Error processing file ${media.id}:`, error);
+        failedFiles++;
+        const errorMsg = `Error processing file ${media.id}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        failedFileDetails.push(errorMsg);
+        console.error(`❌ ${errorMsg}`);
       }
+    }
+
+    console.log(`📊 ZIP Creation Summary:`);
+    console.log(`   - Successfully added: ${successfullyAddedFiles} files`);
+    
+    if (failedFiles > 0) {
+      console.log(`   - Failed to add: ${failedFiles} files`);
+      failedFileDetails.forEach(detail => console.log(`     • ${detail}`));
     }
 
     // Add personal message file
@@ -468,6 +504,21 @@ export async function POST() {
     // Finalize the archive
     archive.finalize();
 
+    console.log(`📦 ZIP ready for download (${(archive.pointer() / 1024 / 1024).toFixed(2)} MB)`);
+
+    // Update the response headers with actual file counts
+    const finalResponse = new Response(stream, {
+      headers: {
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename="Wedding-Album-Karin-Noam-18-08-2025.zip"`,
+        'Cache-Control': 'no-cache',
+        'X-Total-Files-Listed': allMediaItems.length.toString(),
+        'X-Valid-Files-Processed': validMediaItems.length.toString(),
+        'X-Files-Added-To-ZIP': successfullyAddedFiles.toString(),
+        'X-Archive-Size-Bytes': archive.pointer().toString(),
+      },
+    });
+
     // Cache the ZIP file
     // The ZIP buffer is now in the 'archive' object, which is finalized.
     // We can't directly get the buffer from 'archive' here as it's already finalized.
@@ -475,7 +526,7 @@ export async function POST() {
     // For now, we'll just return the response with the stream.
     console.log(`✅ ZIP finalized and stream ready for download.`);
 
-    return response;
+    return finalResponse;
 
   } catch (error) {
     console.error('Download all error:', error);

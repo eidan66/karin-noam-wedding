@@ -10,6 +10,7 @@ export default function DownloadPage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [totalFiles, setTotalFiles] = useState(0);
   const [completedFiles, setCompletedFiles] = useState(0);
+  const [actualDownloadedFiles, setActualDownloadedFiles] = useState(0);
   const [error, setError] = useState('');
   const [hasDownloadedOnce, setHasDownloadedOnce] = useState(false);
   const [isLoadingFileCount, setIsLoadingFileCount] = useState(false);
@@ -98,6 +99,7 @@ export default function DownloadPage() {
 
     setIsDownloading(true);
     setError('');
+    setActualDownloadedFiles(0); // Reset actual count for new download
     
     try {
       // First, get the list of files to show progress
@@ -111,6 +113,29 @@ export default function DownloadPage() {
       });
       
       if (downloadResponse.ok) {
+        // Get the response headers to check if we have file count info
+        // Note: We'll use custom headers to get file count information
+        
+        // Try to get actual file count from response if available
+        try {
+          // Read custom headers with file count information
+          const filesAddedToZip = downloadResponse.headers.get('X-Files-Added-To-ZIP');
+          
+          if (filesAddedToZip) {
+            const actualCount = parseInt(filesAddedToZip);
+            setActualDownloadedFiles(actualCount);
+            
+            // Show warning if there's a discrepancy
+            if (actualCount !== files.length) {
+              console.warn(`⚠️ File count discrepancy: Expected ${files.length}, got ${actualCount}`);
+            }
+          } else {
+            setActualDownloadedFiles(files.length);
+          }
+        } catch {
+          setActualDownloadedFiles(files.length);
+        }
+        
         // If this is not the first download, skip progress simulation
         if (!hasDownloadedOnce) {
           // Simulate progress updates while downloading
@@ -326,6 +351,17 @@ export default function DownloadPage() {
                       {isLoadingFileCount ? 'בודק קבצים...' : 'קבצים זמינים'}
                     </div>
                   </div>
+                  
+                  {actualDownloadedFiles > 0 && actualDownloadedFiles !== totalFiles && (
+                    <div className="text-center p-4 bg-amber-50 dark:bg-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-600">
+                      <div className="text-2xl font-bold text-amber-600 dark:text-amber-300">
+                        {actualDownloadedFiles}
+                      </div>
+                      <div className="text-sm text-amber-600 dark:text-amber-300">
+                        קבצים בפועל ב-ZIP
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="mt-4 mb-4 text-center">
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
@@ -409,6 +445,11 @@ export default function DownloadPage() {
                         <p className="text-emerald-600 dark:text-emerald-400 text-sm text-center">
                           הקובץ יורד למחשב שלכם
                         </p>
+                        {actualDownloadedFiles > 0 && actualDownloadedFiles !== totalFiles && (
+                          <p className="text-amber-600 dark:text-amber-400 text-sm text-center mt-2">
+                            📁 הקובץ מכיל {actualDownloadedFiles} קבצים מתוך {totalFiles} שהוצגו
+                          </p>
+                        )}
                       </div>
                     </div>
                   </motion.div>
